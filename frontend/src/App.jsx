@@ -381,7 +381,7 @@ export default function App() {
   const [modeloVars,setModeloVars]   = useState({});
   const [juzgDetail,setJuzgDetail]   = useState(null);
 
-  const canEdit = user?.rol !== "abogado" || true; // abogados pueden editar sus propios
+  const canEdit = user?.rol !== 'abogado'; // abogados pueden editar sus propios
   const isAdmin = ["administrador","socio"].includes(user?.rol);
 
   const loadData = useCallback(async () => {

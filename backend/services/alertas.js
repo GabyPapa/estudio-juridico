@@ -26,14 +26,14 @@ function getTransporter() {
  * No duplica alertas — registra cada envío en AlertasEnviadas.
  */
 async function verificarAlertas() {
-  const destinatarios = (process.env.EMAIL_DESTINATARIOS || '').trim();
+  const destinatarios = (process.env.ALERT_TO || '').trim();
   if (!destinatarios || !process.env.SMTP_USER) {
     console.log('⚠️  Alertas: SMTP no configurado en .env, omitiendo.');
     return;
   }
 
   // BUG FIX: validar diasConfig para evitar SQL injection
-  const diasRaw    = (process.env.ALERTA_DIAS || '3,7').split(',');
+  const diasRaw    = (process.env.ALERT_DAYS || '3,7').split(',');
   const diasConfig = diasRaw
     .map(d => parseInt(d.trim()))
     .filter(d => Number.isInteger(d) && d > 0 && d <= 365);
@@ -133,7 +133,7 @@ async function verificarAlertas() {
 </body></html>`;
 
     await getTransporter().sendMail({
-      from:    process.env.EMAIL_FROM || process.env.SMTP_USER,
+      from:    process.env.ALERT_FROM || process.env.SMTP_USER,
       to:      destinatarios,
       subject: `⚖️ [${pendientes.length}] Expediente${pendientes.length !== 1 ? 's' : ''} con vencimiento próximo — ${new Date().toLocaleDateString('es-AR')}`,
       html,
@@ -154,7 +154,7 @@ async function verificarAlertas() {
 }
 
 function iniciarAlertas() {
-  const hora = process.env.ALERTA_HORA || '08:00';
+  const hora = process.env.ALERT_HOUR || '08:00';
   const [h, m] = hora.split(':');
   const expresion = `${parseInt(m)} ${parseInt(h)} * * 1-6`; // Lun-Sáb
 

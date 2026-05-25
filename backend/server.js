@@ -53,20 +53,19 @@ app.use((err, _req, res, _next) => {
 });
 
 // ── Arranque ──────────────────────────────────────────────
-async function start() {
-  try {
-    await getPool();
-    app.listen(PORT, () => {
-      console.log(`\n🚀 Servidor en http://localhost:${PORT}`);
-      console.log('   /api/auth | /api/expedientes | /api/clientes | /api/abogados');
-      console.log('   /api/juzgados | /api/modelos | /api/colegios | /api/matriculas');
-      console.log('   /api/exportar | /api/health\n');
-    });
-    iniciarAlertas();
-  } catch (err) {
-    console.error('❌ Error de conexión:', err.message);
-    process.exit(1);
-  }
-}
+// FIX: el servidor arranca siempre. Si la DB no está disponible al inicio,
+// cada request reintentará la conexión automáticamente (ver db.js getPool).
+app.listen(PORT, () => {
+  console.log(`\nServidor en http://localhost:${PORT}`);
+  console.log('  /api/auth | /api/expedientes | /api/clientes | /api/abogados');
+  console.log('  /api/juzgados | /api/modelos | /api/colegios | /api/matriculas');
+  console.log('  /api/exportar | /api/health\n');
+});
 
-start();
+// Intentar conectar a la DB en background (no bloquea el arranque)
+getPool()
+  .then(() => iniciarAlertas())
+  .catch(() => {
+    console.warn('[server] Servidor iniciado sin DB. Se reintentará en cada request.');
+    console.warn('[server] Ejecuta CONFIGURAR_SQL.bat como Administrador si persiste el error.\n');
+  });
