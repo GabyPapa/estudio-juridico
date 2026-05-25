@@ -751,6 +751,199 @@ function EscritoMetaForm({ initial, areas, cats, exps, onSave, onCancel }) {
 }
 
 
+// ── InvestigacionIA ───────────────────────────────────────────
+// Incluye configuracion de API key integrada (sin tocar archivos)
+function InvestigacionIA({ isAdmin }) {
+  const [tipo,       setTipo]       = useState("jurisprudencia");
+  const [query,      setQuery]      = useState("");
+  const [resultado,  setResultado]  = useState(null);
+  const [buscando,   setBuscando]   = useState(false);
+  const [sinKey,     setSinKey]     = useState(false);
+  const [keyInput,   setKeyInput]   = useState("");
+  const [guardando,  setGuardando]  = useState(false);
+  const [keyMsg,     setKeyMsg]     = useState("");
+
+  // Verificar si hay key al montar
+  useEffect(() => {
+    api.get("/api/config/ANTHROPIC_API_KEY")
+      .then(r => { if (!r.configurada) setSinKey(true); })
+      .catch(() => setSinKey(true));
+  }, []);
+
+  const guardarKey = async () => {
+    if (!keyInput.trim().startsWith("sk-ant-")) {
+      setKeyMsg("La clave debe empezar con sk-ant-");
+      return;
+    }
+    setGuardando(true); setKeyMsg("");
+    try {
+      await api.post("/api/config/ANTHROPIC_API_KEY", { valor: keyInput.trim() });
+      setSinKey(false);
+      setKeyMsg("");
+      setKeyInput("");
+    } catch(e) { setKeyMsg(e.message || "Error al guardar"); }
+    setGuardando(false);
+  };
+
+  const buscar = async () => {
+    if (!query.trim()) return;
+    setBuscando(true); setResultado(null);
+    try {
+      const r = await api.post("/api/investigacion", { query: query.trim(), tipo });
+      if (r.sinKey) { setSinKey(true); setResultado(null); }
+      else if (r.ok) setResultado(r.data);
+      else setResultado({ error: r.error || "Error desconocido" });
+    } catch(e) {
+      if (e.message?.includes("503") || e.message?.includes("API key")) setSinKey(true);
+      else setResultado({ error: e.message || "Error de conexión" });
+    }
+    setBuscando(false);
+  };
+
+  const TIPOS = [
+    { id:"jurisprudencia", label:"Jurisprudencia", icon:"ti-gavel" },
+    { id:"doctrina",       label:"Doctrina",       icon:"ti-notebook" },
+    { id:"legislacion",    label:"Legislación",    icon:"ti-file-certificate" },
+  ];
+
+  // ── Pantalla de configuración ────────────────────────────────
+  if (sinKey) return (
+    <div>
+      <h1 style={{margin:"0 0 0.5rem",fontSize:20,fontWeight:500}}>Investigación Legal con IA</h1>
+      <p style={{margin:"0 0 1.5rem",fontSize:13,color:"var(--color-text-secondary)"}}>Búsqueda asistida en jurisprudencia, doctrina y legislación argentina.</p>
+
+      <div style={{maxWidth:520,margin:"0 auto",background:"var(--color-background-primary)",border:`0.5px solid var(--color-border-warning)`,borderRadius:"var(--border-radius-lg)",padding:"2rem",textAlign:"center"}}>
+        <div style={{width:56,height:56,borderRadius:14,background:"var(--color-background-warning)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px"}}>
+          <i className="ti ti-key" style={{fontSize:28,color:"var(--color-text-warning)"}}/>
+        </div>
+        <h2 style={{margin:"0 0 8px",fontSize:17,fontWeight:500}}>Se requiere una API Key de Anthropic</h2>
+        <p style={{margin:"0 0 20px",fontSize:13,color:"var(--color-text-secondary)",lineHeight:1.6}}>
+          Este módulo usa la IA de Anthropic para buscar jurisprudencia, doctrina y legislación en tiempo real.
+          Necesitás una clave gratuita de <strong>console.anthropic.com</strong>.
+        </p>
+
+        {!isAdmin
+          ? <div style={{fontSize:13,color:"var(--color-text-secondary)",padding:"12px",background:"var(--color-background-secondary)",borderRadius:8}}>
+              <i className="ti ti-lock"/> Pedile a un administrador del sistema que configure la API key.
+            </div>
+          : <>
+              <div style={{textAlign:"left",marginBottom:16}}>
+                <div style={{fontSize:12,fontWeight:500,marginBottom:6,color:"var(--color-text-secondary)"}}>CÓMO OBTENER TU CLAVE (gratis)</div>
+                {[
+                  ["1","Entrá a","console.anthropic.com/settings/keys","console.anthropic.com"],
+                  ["2","Hacé click en","→ Create Key",""],
+                  ["3","Copiá la clave (empieza con","sk-ant-api03-...","sk-ant-api03-")],
+                  ["4","Pegala abajo y guardá","",""],
+                ].map(([n,pre,code,_],i)=>(
+                  <div key={i} style={{display:"flex",gap:10,alignItems:"flex-start",marginBottom:8}}>
+                    <div style={{width:22,height:22,borderRadius:"50%",background:"var(--color-background-info)",color:"var(--color-text-info)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,flexShrink:0}}>{n}</div>
+                    <div style={{fontSize:13,paddingTop:2}}>{pre} {code&&<code style={{background:"var(--color-background-secondary)",padding:"1px 5px",borderRadius:4,fontSize:12}}>{code}</code>}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{display:"flex",gap:8}}>
+                <input
+                  value={keyInput}
+                  onChange={e=>setKeyInput(e.target.value)}
+                  onKeyDown={e=>e.key==="Enter"&&guardarKey()}
+                  type="password"
+                  placeholder="sk-ant-api03-..."
+                  style={{flex:1,fontFamily:"var(--font-mono)",fontSize:13}}
+                />
+                <button
+                  onClick={guardarKey}
+                  disabled={guardando||!keyInput.trim()}
+                  style={{background:"var(--color-background-info)",color:"var(--color-text-info)",border:"0.5px solid var(--color-border-info)",padding:"0 16px",display:"flex",alignItems:"center",gap:6}}>
+                  {guardando?<><i className="ti ti-loader-2 ti-spin"/> Guardando...</>:<><i className="ti ti-check"/> Guardar</>}
+                </button>
+              </div>
+              {keyMsg&&<div style={{marginTop:8,fontSize:12,color:`var(--color-text-${keyMsg.includes("Error")||keyMsg.includes("debe")?"danger":"success"})`}}>{keyMsg}</div>}
+            </>
+        }
+      </div>
+    </div>
+  );
+
+  // ── Pantalla principal de búsqueda ───────────────────────────
+  return (
+    <div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"0.5rem"}}>
+        <h1 style={{margin:0,fontSize:20,fontWeight:500}}>Investigación Legal con IA</h1>
+        {isAdmin&&<button onClick={()=>setSinKey(true)} style={{fontSize:12,color:"var(--color-text-secondary)",display:"flex",alignItems:"center",gap:4}} title="Cambiar API key"><i className="ti ti-key"/> API key</button>}
+      </div>
+      <p style={{margin:"0 0 1.25rem",fontSize:13,color:"var(--color-text-secondary)"}}>Búsqueda asistida en jurisprudencia, doctrina y legislación argentina.</p>
+
+      <div style={{background:"var(--color-background-primary)",border:`0.5px solid ${B}`,borderRadius:"var(--border-radius-lg)",padding:"1.25rem",marginBottom:"1.5rem"}}>
+        {/* Tabs de tipo */}
+        <div style={{display:"flex",gap:6,marginBottom:14}}>
+          {TIPOS.map(t=>(
+            <button key={t.id} onClick={()=>setTipo(t.id)} style={{fontSize:13,fontWeight:tipo===t.id?500:400,background:tipo===t.id?"var(--color-background-info)":"var(--color-background-secondary)",color:tipo===t.id?"var(--color-text-info)":"var(--color-text-secondary)",border:tipo===t.id?"0.5px solid var(--color-border-info)":`0.5px solid ${B}`,borderRadius:20,padding:"4px 14px",cursor:"pointer",display:"flex",alignItems:"center",gap:5}}>
+              <i className={`ti ${t.icon}`} style={{fontSize:13}}/>{t.label}
+            </button>
+          ))}
+        </div>
+
+        <div style={{display:"flex",gap:8}}>
+          <input
+            value={query}
+            onChange={e=>setQuery(e.target.value)}
+            onKeyDown={e=>e.key==="Enter"&&buscar()}
+            placeholder={`Buscá en ${tipo}... (ej: ${tipo==="jurisprudencia"?"despido discriminatorio CSJN":tipo==="doctrina"?"responsabilidad civil CCyCN":"ley de alquileres 2024"})`}
+            style={{flex:1}}
+          />
+          <button
+            onClick={buscar}
+            disabled={buscando||!query.trim()}
+            style={{background:"var(--color-background-info)",color:"var(--color-text-info)",border:"0.5px solid var(--color-border-info)",display:"flex",alignItems:"center",gap:6,padding:"0 18px",fontWeight:500}}>
+            {buscando?<><Spinner/> Buscando...</>:<><i className="ti ti-search"/> Buscar con IA</>}
+          </button>
+        </div>
+      </div>
+
+      {/* Error */}
+      {resultado?.error&&<div style={{background:"var(--color-background-danger)",border:"0.5px solid var(--color-border-danger)",borderRadius:"var(--border-radius-lg)",padding:"1rem 1.25rem",fontSize:13,color:"var(--color-text-danger)"}}><i className="ti ti-alert-circle"/> {resultado.error}</div>}
+
+      {/* Resultados */}
+      {resultado&&!resultado.error&&(
+        <div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+            <h3 style={{margin:0,fontSize:15,fontWeight:500}}>{resultado.titulo}</h3>
+            <span style={{fontSize:12,color:"var(--color-text-secondary)"}}>{resultado.resultados?.length||0} resultado(s)</span>
+          </div>
+          {resultado.nota&&<div style={{background:"var(--color-background-warning)",border:"0.5px solid var(--color-border-warning)",borderRadius:"var(--border-radius-md)",padding:"10px 14px",fontSize:12,marginBottom:14,lineHeight:1.5}}><i className="ti ti-info-circle"/> {resultado.nota}</div>}
+          {resultado.raw&&<div style={{fontSize:13,lineHeight:1.7,whiteSpace:"pre-wrap",padding:"1rem",background:"var(--color-background-secondary)",borderRadius:"var(--border-radius-md)"}}>{resultado.nota}</div>}
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            {(resultado.resultados||[]).map((r,i)=>(
+              <div key={i} style={{background:"var(--color-background-primary)",border:`0.5px solid ${B}`,borderRadius:"var(--border-radius-lg)",padding:"1rem 1.25rem",borderLeft:`3px solid var(--color-border-${r.relevancia==="alta"?"info":"secondary"})`}}>
+                <div style={{display:"flex",justifyContent:"space-between",gap:10,marginBottom:6}}>
+                  <div style={{fontSize:14,fontWeight:500,flex:1}}>{r.titulo}</div>
+                  <div style={{flexShrink:0,display:"flex",gap:6,alignItems:"center"}}>
+                    {r.relevancia==="alta"&&<Badge v="activo"/>}
+                    <span style={{fontSize:12,color:"var(--color-text-secondary)"}}>{r.fecha}</span>
+                  </div>
+                </div>
+                {r.referencia&&<div style={{fontSize:12,fontFamily:"var(--font-mono)",color:"var(--color-text-secondary)",marginBottom:6}}>{r.referencia}</div>}
+                <div style={{fontSize:13,lineHeight:1.6}}>{r.resumen}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Estado vacío */}
+      {!resultado&&!buscando&&(
+        <div style={{textAlign:"center",padding:"3rem",color:"var(--color-text-secondary)"}}>
+          <i className="ti ti-books" style={{fontSize:44,display:"block",marginBottom:14,opacity:0.5}}/>
+          <p style={{margin:"0 0 6px",fontSize:15,fontWeight:500}}>Buscá jurisprudencia, doctrina o legislación</p>
+          <p style={{margin:0,fontSize:13}}>La IA busca en la web en tiempo real y devuelve fallos, autores y leyes relevantes.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 // ── Login ─────────────────────────────────────────────────────
 function LoginScreen({onLogin}) {
   const [email,setEmail]=useState("");
@@ -1530,63 +1723,7 @@ export default function App() {
           areaColor={areaColor} isAdmin={isAdmin} onRefresh={loadData} B={B}
         />}
         {/* ── INVESTIGACION IA ── */}
-        {view==="investigacion"&&(
-          <div>
-            {pageHead("Investigacion Legal con IA")}
-            <p style={{margin:"-0.5rem 0 1.25rem",fontSize:13,color:"var(--color-text-secondary)"}}>Busqueda asistida en jurisprudencia, doctrina y legislacion argentina.</p>
-            <div style={{background:"var(--color-background-primary)",border:`0.5px solid ${B}`,borderRadius:"var(--border-radius-lg)",padding:"1.25rem",marginBottom:"1.5rem"}}>
-              {tabBar([["jurisprudencia","Jurisprudencia"],["doctrina","Doctrina"],["legislacion","Legislacion"]],searchType,setSearchType)}
-              <div style={{display:"flex",gap:8}}>
-                <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} onKeyDown={e=>e.key==="Enter"&&doSearch()} placeholder={`Buscar en ${searchType}...`} style={{flex:1}}/>
-                <button onClick={doSearch} disabled={searching} style={{background:"var(--color-background-info)",color:"var(--color-text-info)",border:"0.5px solid var(--color-border-info)",display:"flex",alignItems:"center",gap:6,padding:"0 16px"}}>
-                  {searching?<Spinner/>:<i className="ti ti-search"/>}{searching?"Buscando...":"Buscar con IA"}
-                </button>
-              </div>
-            </div>
-            {searchRes?.error&&(
-              <div style={{background:"var(--color-background-danger)",border:"0.5px solid var(--color-border-danger)",borderRadius:"var(--border-radius-lg)",padding:"1.25rem"}}>
-                <div style={{fontSize:14,fontWeight:500,color:"var(--color-text-danger)",marginBottom:8}}><i className="ti ti-alert-circle"/> Error</div>
-                <div style={{fontSize:13,color:"var(--color-text-danger)",marginBottom:12}}>{searchRes.error}</div>
-                {searchRes.error?.includes("ANTHROPIC_API_KEY")&&(
-                  <div style={{fontSize:12,background:"var(--color-background-secondary)",borderRadius:6,padding:"10px 12px",lineHeight:1.8}}>
-                    <strong>Para activar este módulo:</strong><br/>
-                    1. Obtené tu API key en <strong>console.anthropic.com</strong><br/>
-                    2. Abrí <code>backend/.env</code><br/>
-                    3. Completá: <code>ANTHROPIC_API_KEY=sk-ant-...</code><br/>
-                    4. Reiniciá el backend (cerrá y volvé a ejecutar INICIAR.bat)
-                  </div>
-                )}
-              </div>
-            )}
-            {searchRes&&!searchRes.error&&(
-              <div>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-                  <h3 style={{margin:0,fontSize:15,fontWeight:500}}>{searchRes.titulo}</h3>
-                  <span style={{fontSize:12,color:"var(--color-text-secondary)"}}>{searchRes.resultados?.length||0} resultado(s)</span>
-                </div>
-                {searchRes.nota&&<div style={{background:"var(--color-background-warning)",border:"0.5px solid var(--color-border-warning)",borderRadius:"var(--border-radius-md)",padding:"10px 14px",fontSize:12,marginBottom:14}}>{searchRes.nota}</div>}
-                {searchRes.raw&&<div style={{fontSize:13,lineHeight:1.6,whiteSpace:"pre-wrap"}}>{searchRes.nota}</div>}
-                <div style={{display:"flex",flexDirection:"column",gap:10}}>
-                  {(searchRes.resultados||[]).map((r,i)=>(
-                    <div key={i} style={{background:"var(--color-background-primary)",border:`0.5px solid ${B}`,borderRadius:"var(--border-radius-lg)",padding:"1rem 1.25rem",borderLeft:`3px solid var(--color-border-${r.relevancia==="alta"?"info":"secondary"})`}}>
-                      <div style={{display:"flex",justifyContent:"space-between",gap:10,marginBottom:6}}>
-                        <div style={{fontSize:14,fontWeight:500}}>{r.titulo}</div>
-                        <div style={{flexShrink:0,display:"flex",gap:6,alignItems:"center"}}>{r.relevancia==="alta"&&<Badge v="activo"/>}<span style={{fontSize:12,color:"var(--color-text-secondary)"}}>{r.fecha}</span></div>
-                      </div>
-                      <div style={{fontSize:12,color:"var(--color-text-secondary)",marginBottom:6}}>{r.referencia}</div>
-                      <div style={{fontSize:13,lineHeight:1.5}}>{r.resumen}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            {!searchRes&&!searching&&<div style={{textAlign:"center",padding:"2.5rem",color:"var(--color-text-secondary)"}}>
-              <i className="ti ti-books" style={{fontSize:40,display:"block",marginBottom:12}}/>
-              <p style={{margin:0,fontSize:14,fontWeight:500}}>Busca jurisprudencia, doctrina o legislacion</p>
-              <p style={{margin:"8px 0 0",fontSize:13}}>La IA busca en la web y devuelve resultados relevantes para el derecho argentino.</p>
-            </div>}
-          </div>
-        )}
+        {view==="investigacion"&&<InvestigacionIA isAdmin={isAdmin}/>}
 
       </main>
     </div>

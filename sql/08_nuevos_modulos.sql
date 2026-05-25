@@ -246,3 +246,17 @@ SELECT 'Doctrina',        COUNT(*) FROM Doctrina        UNION ALL
 SELECT 'Jurisprudencia',  COUNT(*) FROM Jurisprudencia  UNION ALL
 SELECT 'Leyes',           COUNT(*) FROM Leyes;
 GO
+
+-- ── ConfiguracionSistema (clave-valor para settings del sistema) ─
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'ConfiguracionSistema')
+BEGIN
+  CREATE TABLE ConfiguracionSistema (
+    clave         NVARCHAR(100)  NOT NULL PRIMARY KEY,
+    valor         NVARCHAR(MAX),
+    descripcion   NVARCHAR(300),
+    actualizado_en DATETIME2     NOT NULL DEFAULT GETDATE()
+  );
+  INSERT INTO ConfiguracionSistema (clave, descripcion) VALUES
+    ('ANTHROPIC_API_KEY',  'API Key de Anthropic para el modulo Investigacion IA (console.anthropic.com)');
+END
+GO

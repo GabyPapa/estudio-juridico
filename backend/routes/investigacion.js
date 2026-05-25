@@ -1,21 +1,26 @@
 const router = require('express').Router();
+const { query } = require('../db');
 const { authMiddleware } = require('../middleware/auth');
 
-/**
- * POST /api/investigacion
- * Proxy autenticado hacia Anthropic API.
- * Body: { query: string, tipo: "jurisprudencia" | "doctrina" | "legislacion" }
- */
+async function getApiKey() {
+  // Prioridad 1: variable de entorno
+  if (process.env.ANTHROPIC_API_KEY?.trim()) return process.env.ANTHROPIC_API_KEY.trim();
+  // Prioridad 2: base de datos
+  try {
+    const r = await query("SELECT valor FROM ConfiguracionSistema WHERE clave='ANTHROPIC_API_KEY' AND valor IS NOT NULL AND valor<>''");
+    if (r.recordset[0]?.valor) return r.recordset[0].valor;
+  } catch {}
+  return null;
+}
+
 router.post('/', authMiddleware, async (req, res) => {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey || apiKey.trim() === '') {
-    return res.status(503).json({
-      error: 'ANTHROPIC_API_KEY no configurada en backend/.env. Agregá tu clave de API de Anthropic para usar este módulo.',
-    });
+  const apiKey = await getApiKey();
+  if (!apiKey) {
+    return res.status(503).json({ sinKey: true, error: 'API key no configurada' });
   }
 
-  const { query, tipo } = req.body;
-  if (!query?.trim()) return res.status(400).json({ error: 'query requerida' });
+  const { query: searchQuery, tipo } = req.body;
+  if (!searchQuery?.trim()) return res.status(400).json({ error: 'query requerida' });
 
   const tipoTexto = tipo === 'jurisprudencia'
     ? 'jurisprudencia argentina: fallos de la CSJN, Cámaras Nacionales y Provinciales'
@@ -24,72 +29,63 @@ router.post('/', authMiddleware, async (req, res) => {
     : 'legislación argentina vigente: leyes nacionales, decretos y resoluciones';
 
   const systemPrompt = `Sos un asistente jurídico especializado en derecho argentino.
-Tu tarea es buscar información actualizada sobre ${tipoTexto}.
-Responde EXCLUSIVAMENTE con un objeto JSON válido, sin texto adicional, sin backticks, sin comentarios.
-Estructura exacta requerida:
+Buscá información actualizada sobre ${tipoTexto}.
+Respondé EXCLUSIVAMENTE con JSON válido, sin texto adicional, sin backticks.
+Estructura:
 {
   "titulo": "título descriptivo de la búsqueda",
   "resultados": [
     {
       "titulo": "nombre del fallo/obra/ley",
-      "referencia": "cita completa (ej: Fallos 327:3753, LL 2024-A-123, Ley 20.744)",
-      "fecha": "año o fecha del fallo/publicación",
-      "resumen": "resumen de 2-3 oraciones sobre el contenido y relevancia",
+      "referencia": "cita completa (Fallos 327:3753, LL 2024-A-123, Ley 20.744)",
+      "fecha": "año o fecha",
+      "resumen": "2-3 oraciones sobre contenido y relevancia",
       "relevancia": "alta"
     }
   ],
-  "nota": "aclaración útil sobre los resultados o limitaciones de la búsqueda"
+  "nota": "aclaración sobre los resultados o limitaciones"
 }
-Incluí entre 3 y 6 resultados ordenados por relevancia. Si no encontrás resultados confiables, indicalo en "nota" y devolvé resultados vacíos.`;
-
-  const userPrompt = `Buscá información sobre: "${query.trim()}" en ${tipoTexto}.`;
+Incluí 3-6 resultados ordenados por relevancia.`;
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
-        'Content-Type':   'application/json',
-        'x-api-key':      apiKey,
+        'Content-Type':      'application/json',
+        'x-api-key':         apiKey,
         'anthropic-version': '2023-06-01',
-        'anthropic-beta': 'web-search-2025-03-05',
+        'anthropic-beta':    'web-search-2025-03-05',
       },
       body: JSON.stringify({
         model:      'claude-sonnet-4-5',
         max_tokens: 2000,
         system:     systemPrompt,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-        messages: [{ role: 'user', content: userPrompt }],
+        messages: [{ role: 'user', content: `Buscá sobre: "${searchQuery.trim()}" en ${tipoTexto}.` }],
       }),
     });
 
     if (!response.ok) {
       const errBody = await response.json().catch(() => ({}));
       const msg = errBody?.error?.message || `HTTP ${response.status}`;
-      return res.status(502).json({ error: `Error en API de Anthropic: ${msg}` });
+      if (response.status === 401) return res.status(401).json({ sinKey: true, error: 'API key inválida. Verificá la clave en Configuración.' });
+      return res.status(502).json({ error: `Error Anthropic: ${msg}` });
     }
 
     const data = await response.json();
-
-    // Extraer bloque de texto de la respuesta (puede haber tool_use intercalados)
     const textBlock = data.content?.find(b => b.type === 'text');
     const raw = textBlock?.text || '';
 
-    // Intentar parsear JSON
     try {
-      const clean = raw.replace(/```json|```/g, '').trim();
-      const parsed = JSON.parse(clean);
+      const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
       return res.json({ ok: true, data: parsed });
     } catch {
-      // Si no es JSON válido, devolver el texto crudo
-      return res.json({ ok: true, data: { titulo: query, resultados: [], nota: raw, raw: true } });
+      return res.json({ ok: true, data: { titulo: searchQuery, resultados: [], nota: raw, raw: true } });
     }
   } catch (err) {
-    console.error('[investigacion POST]', err.message);
-    // Distinguir errores de red vs otros
-    if (err.cause?.code === 'ENOTFOUND' || err.cause?.code === 'ECONNREFUSED') {
-      return res.status(503).json({ error: 'Sin conexión a internet. Verificá la conexión del servidor.' });
-    }
-    res.status(500).json({ error: 'Error al contactar la API. Revisá la clave en backend/.env.' });
+    console.error('[investigacion]', err.message);
+    const sinInternet = ['ENOTFOUND','ECONNREFUSED','ETIMEDOUT'].includes(err.cause?.code);
+    res.status(503).json({ error: sinInternet ? 'Sin conexión a internet.' : 'Error al contactar Anthropic.' });
   }
 });
 
