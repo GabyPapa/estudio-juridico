@@ -942,20 +942,15 @@ export default function App() {
     if(!searchQ.trim())return;
     setSearching(true);setSearchRes(null);
     try{
-      const resp=await fetch("https://api.anthropic.com/v1/messages",{
-        method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({
-          model:"claude-sonnet-4-20250514",max_tokens:2000,
-          system:"Eres asistente juridico argentino. Responde SOLO JSON valido, sin backticks.",
-          tools:[{type:"web_search_20250305",name:"web_search"}],
-          messages:[{role:"user",content:`Busca informacion sobre: "${searchQ}" en ${searchType==="jurisprudencia"?"jurisprudencia argentina (fallos CSJN y Camaras)":searchType==="doctrina"?"doctrina juridica argentina":"legislacion argentina vigente"}. Devuelve JSON con estructura: {"titulo":"...","resultados":[{"titulo":"...","referencia":"...","fecha":"...","resumen":"...","relevancia":"alta|media"}],"nota":"..."}`}]
-        })
-      });
-      const d=await resp.json();
-      const txt=d.content?.find(b=>b.type==="text")?.text||"";
-      try{setSearchRes(JSON.parse(txt.replace(/```json|```/g,"").trim()));}
-      catch{setSearchRes({titulo:searchQ,resultados:[],nota:txt,raw:true});}
-    }catch{setSearchRes({error:"Error de conexion con la API."});}
+      const resp = await api.post("/api/investigacion",{ query:searchQ.trim(), tipo:searchType });
+      if(resp.ok && resp.data){
+        setSearchRes(resp.data);
+      } else {
+        setSearchRes({ error: resp.error || "Respuesta inesperada del servidor." });
+      }
+    } catch(err) {
+      setSearchRes({ error: err.message || "Error de conexion con el servidor." });
+    }
     setSearching(false);
   };
 
@@ -1548,7 +1543,21 @@ export default function App() {
                 </button>
               </div>
             </div>
-            {searchRes?.error&&<Err msg={searchRes.error}/>}
+            {searchRes?.error&&(
+              <div style={{background:"var(--color-background-danger)",border:"0.5px solid var(--color-border-danger)",borderRadius:"var(--border-radius-lg)",padding:"1.25rem"}}>
+                <div style={{fontSize:14,fontWeight:500,color:"var(--color-text-danger)",marginBottom:8}}><i className="ti ti-alert-circle"/> Error</div>
+                <div style={{fontSize:13,color:"var(--color-text-danger)",marginBottom:12}}>{searchRes.error}</div>
+                {searchRes.error?.includes("ANTHROPIC_API_KEY")&&(
+                  <div style={{fontSize:12,background:"var(--color-background-secondary)",borderRadius:6,padding:"10px 12px",lineHeight:1.8}}>
+                    <strong>Para activar este módulo:</strong><br/>
+                    1. Obtené tu API key en <strong>console.anthropic.com</strong><br/>
+                    2. Abrí <code>backend/.env</code><br/>
+                    3. Completá: <code>ANTHROPIC_API_KEY=sk-ant-...</code><br/>
+                    4. Reiniciá el backend (cerrá y volvé a ejecutar INICIAR.bat)
+                  </div>
+                )}
+              </div>
+            )}
             {searchRes&&!searchRes.error&&(
               <div>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
