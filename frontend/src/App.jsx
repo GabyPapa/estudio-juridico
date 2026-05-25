@@ -299,17 +299,19 @@ function AbogadoForm({initial,onSave,onCancel,loading}) {
 
 
 // ── EscriitosPropios ─────────────────────────────────────────
-function EscriitosPropios({ escritos, cats, areas, exps, areaColor, isAdmin, onRefresh, B }) {
-  const [q,         setQ]         = useState("");
-  const [areaF,     setAreaF]     = useState("");
-  const [catF,      setCatF]      = useState("");
-  const [detalle,   setDetalle]   = useState(null);
-  const [showUp,    setShowUp]    = useState(false);
-  const [editando,  setEditando]  = useState(null);
-  const [pdfUrl,    setPdfUrl]    = useState(null);
-  const [pdfLoad,   setPdfLoad]   = useState(false);
+// agrupa documentos por "materia" (= categoria || area || "Sin clasificar")
+// dentro de cada módulo los ordena A-Z por título
 
-  // limpiar blob al desmontar o cambiar detalle
+function EscriitosPropios({ escritos, cats, areas, exps, areaColor, isAdmin, onRefresh, B }) {
+  const [q,        setQ]        = useState("");
+  const [areaF,    setAreaF]    = useState("");
+  const [open,     setOpen]     = useState({});      // { materia: true/false }
+  const [detalle,  setDetalle]  = useState(null);
+  const [showUp,   setShowUp]   = useState(false);
+  const [editando, setEditando] = useState(null);
+  const [pdfUrl,   setPdfUrl]   = useState(null);
+  const [pdfLoad,  setPdfLoad]  = useState(false);
+
   const clearPdf = () => { if (pdfUrl) { URL.revokeObjectURL(pdfUrl); setPdfUrl(null); } };
 
   const openDetail = async (e) => {
@@ -324,58 +326,81 @@ function EscriitosPropios({ escritos, cats, areas, exps, areaColor, isAdmin, onR
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Eliminar este escrito y su archivo?")) return;
+    if (!window.confirm("¿Eliminar este escrito y su archivo?")) return;
     try { await api.delete(`/api/escritos/${id}`); clearPdf(); setDetalle(null); await onRefresh(); }
     catch (e) { alert(e.message); }
   };
 
-  const filt = escritos.filter(e =>
+  const toggleOpen = (m) => setOpen(p => ({ ...p, [m]: !p[m] }));
+  const expandAll  = (groups) => setOpen(Object.fromEntries(groups.map(([m]) => [m, true])));
+  const collapseAll= () => setOpen({});
+
+  // ── agrupación ──────────────────────────────────────────────
+  // materia = categoria si existe, sino area, sino "Sin clasificar"
+  const materiaKey = e => (e.categoria?.trim() || e.area?.trim() || "Sin clasificar");
+
+  const filtered = escritos.filter(e =>
     (!areaF || e.area === areaF) &&
-    (!catF  || e.categoria === catF) &&
     (!q     || (e.titulo + (e.descripcion||"") + (e.tags||"")).toLowerCase().includes(q.toLowerCase()))
   );
 
-  const EXT_ICON = { '.pdf':'ti-file-type-pdf', '.docx':'ti-file-type-docx', '.doc':'ti-file-type-doc', '.txt':'ti-file-type-txt' };
-  const EXT_COLOR= { '.pdf':'danger', '.docx':'info', '.doc':'info', '.txt':'secondary' };
-  const fmtSize  = b => b > 1048576 ? `${(b/1048576).toFixed(1)} MB` : `${Math.round(b/1024)} KB`;
+  // agrupar y ordenar cada grupo A-Z
+  const groupMap = filtered.reduce((acc, e) => {
+    const k = materiaKey(e);
+    if (!acc[k]) acc[k] = [];
+    acc[k].push(e);
+    return acc;
+  }, {});
+  Object.values(groupMap).forEach(arr =>
+    arr.sort((a, b) => a.titulo.localeCompare(b.titulo, "es", { sensitivity: "base" }))
+  );
+  // grupos ordenados: primero los que tienen área, luego "Sin clasificar"
+  const groups = Object.entries(groupMap).sort(([a],[b]) => {
+    if (a === "Sin clasificar") return 1;
+    if (b === "Sin clasificar") return -1;
+    return a.localeCompare(b, "es", { sensitivity: "base" });
+  });
 
+  const EXT_ICON  = { '.pdf':'ti-file-type-pdf', '.docx':'ti-file-type-docx', '.doc':'ti-file-type-doc', '.txt':'ti-file-type-txt' };
+  const EXT_COLOR = { '.pdf':'danger', '.docx':'info', '.doc':'info', '.txt':'secondary' };
+  const fmtSize   = b => b > 1048576 ? `${(b/1048576).toFixed(1)} MB` : `${Math.round(b/1024)} KB`;
+
+  // ── vista de detalle ─────────────────────────────────────────
   if (detalle) return (
     <div>
       <div style={{display:"flex",justifyContent:"space-between",marginBottom:"1.25rem"}}>
-        <button onClick={()=>{clearPdf();setDetalle(null);}} style={{fontSize:13,display:"flex",alignItems:"center",gap:5}}><i className="ti ti-arrow-left" style={{fontSize:14}}/> Volver</button>
+        <button onClick={()=>{clearPdf();setDetalle(null);}} style={{fontSize:13,display:"flex",alignItems:"center",gap:5}}>
+          <i className="ti ti-arrow-left" style={{fontSize:14}}/> Volver
+        </button>
         <div style={{display:"flex",gap:8}}>
-          <a href={`/api/escritos/file/${detalle.id}`}
-             onClick={async e=>{e.preventDefault();const url=await fetchBlobUrl(`/api/escritos/file/${detalle.id}`);const a=document.createElement('a');a.href=url;a.download=detalle.original_name||detalle.titulo;a.click();URL.revokeObjectURL(url);}}
-             style={{fontSize:13,display:"flex",alignItems:"center",gap:5,color:"var(--color-text-success)",border:"0.5px solid var(--color-border-success)",background:"var(--color-background-success)",padding:"6px 12px",borderRadius:"var(--border-radius-md)",cursor:"pointer",textDecoration:"none"}}>
+          <button onClick={async()=>{const url=await fetchBlobUrl(`/api/escritos/file/${detalle.id}`);const a=document.createElement('a');a.href=url;a.download=detalle.original_name||detalle.titulo;a.click();URL.revokeObjectURL(url);}}
+            style={{fontSize:13,display:"flex",alignItems:"center",gap:5,color:"var(--color-text-success)",border:"0.5px solid var(--color-border-success)",background:"var(--color-background-success)"}}>
             <i className="ti ti-download"/> Descargar
-          </a>
-          <button onClick={()=>setEditando(detalle)} style={{fontSize:13,display:"flex",alignItems:"center",gap:5}}><i className="ti ti-edit"/> Editar datos</button>
-          {isAdmin&&<button onClick={()=>handleDelete(detalle.id)} style={{fontSize:13,color:"var(--color-text-danger)",border:"0.5px solid var(--color-border-danger)",background:"var(--color-background-danger)"}}><i className="ti ti-trash"/></button>}
+          </button>
+          <button onClick={()=>setEditando(detalle)} style={{fontSize:13,display:"flex",alignItems:"center",gap:5}}>
+            <i className="ti ti-edit"/> Editar
+          </button>
+          {isAdmin&&<button onClick={()=>handleDelete(detalle.id)} style={{fontSize:13,color:"var(--color-text-danger)",border:"0.5px solid var(--color-border-danger)",background:"var(--color-background-danger)"}}>
+            <i className="ti ti-trash"/>
+          </button>}
         </div>
       </div>
 
-      {/* Modal de edicion de metadatos */}
       {editando&&(
         <div style={{position:"fixed",inset:0,zIndex:60,background:"rgba(0,0,0,0.4)",display:"flex",alignItems:"center",justifyContent:"center"}}>
           <div style={{background:"var(--color-background-primary)",borderRadius:"var(--border-radius-lg)",border:`0.5px solid ${B}`,padding:"1.5rem",width:540,maxWidth:"95%"}}>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:"1rem"}}>
-              <h3 style={{margin:0,fontSize:15,fontWeight:500}}>Editar datos del escrito</h3>
+              <h3 style={{margin:0,fontSize:15,fontWeight:500}}>Editar datos</h3>
               <button onClick={()=>setEditando(null)} style={{border:"none",background:"none",cursor:"pointer",fontSize:18}}><i className="ti ti-x"/></button>
             </div>
-            <EscritoMetaForm
-              initial={editando} areas={areas} cats={cats} exps={exps}
-              onSave={async d=>{
-                try{ const updated=await api.put(`/api/escritos/${editando.id}`,d); setEditando(null); setDetalle(updated); await onRefresh(); }
-                catch(e){ alert(e.message); }
-              }}
-              onCancel={()=>setEditando(null)}
-            />
+            <EscritoMetaForm initial={editando} areas={areas} cats={cats} exps={exps}
+              onSave={async d=>{try{const u=await api.put(`/api/escritos/${editando.id}`,d);setEditando(null);setDetalle(u);await onRefresh();}catch(e){alert(e.message);}}}
+              onCancel={()=>setEditando(null)}/>
           </div>
         </div>
       )}
 
       <div style={{display:"grid",gridTemplateColumns:"260px 1fr",gap:14,alignItems:"flex-start"}}>
-        {/* Panel de info */}
         <div style={{background:"var(--color-background-primary)",border:`0.5px solid ${B}`,borderRadius:"var(--border-radius-lg)",padding:"1.25rem"}}>
           <div style={{display:"flex",gap:10,alignItems:"flex-start",marginBottom:14}}>
             <div style={{width:40,height:40,borderRadius:8,background:`var(--color-background-${EXT_COLOR[detalle.extension]||"secondary"})`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
@@ -386,36 +411,34 @@ function EscriitosPropios({ escritos, cats, areas, exps, areaColor, isAdmin, onR
               <div style={{fontSize:11,color:"var(--color-text-secondary)",marginTop:2}}>{detalle.original_name}</div>
             </div>
           </div>
-          <div style={{display:"flex",flexDirection:"column",gap:10,fontSize:12,borderTop:`0.5px solid ${B}`,paddingTop:12}}>
-            {detalle.area&&<div><span style={{color:"var(--color-text-secondary)"}}>Area: </span><span style={{fontWeight:500}}>{detalle.area}</span></div>}
-            {detalle.categoria&&<div><span style={{color:"var(--color-text-secondary)"}}>Categoria: </span><span style={{fontWeight:500}}>{detalle.categoria}</span></div>}
-            {detalle.exp_caratula&&<div><span style={{color:"var(--color-text-secondary)"}}>Expediente: </span><span style={{fontWeight:500}}>{detalle.exp_caratula}</span></div>}
-            {detalle.size_bytes&&<div><span style={{color:"var(--color-text-secondary)"}}>Tamano: </span><span>{fmtSize(detalle.size_bytes)}</span></div>}
+          <div style={{display:"flex",flexDirection:"column",gap:8,fontSize:12,borderTop:`0.5px solid ${B}`,paddingTop:12}}>
+            {detalle.categoria&&<div><span style={{color:"var(--color-text-secondary)"}}>Materia: </span><span style={{fontWeight:500}}>{detalle.categoria}</span></div>}
+            {detalle.area&&<div><span style={{color:"var(--color-text-secondary)"}}>Área: </span><span style={{fontWeight:500}}>{detalle.area}</span></div>}
+            {detalle.exp_caratula&&<div><span style={{color:"var(--color-text-secondary)"}}>Expediente: </span><span style={{fontWeight:500,lineHeight:1.4}}>{detalle.exp_caratula}</span></div>}
+            {detalle.size_bytes&&<div><span style={{color:"var(--color-text-secondary)"}}>Tamaño: </span><span>{fmtSize(detalle.size_bytes)}</span></div>}
             <div><span style={{color:"var(--color-text-secondary)"}}>Cargado: </span><span>{detalle.creado_en?.slice(0,10)}</span></div>
           </div>
-          {detalle.descripcion&&<div style={{marginTop:12,borderTop:`0.5px solid ${B}`,paddingTop:10,fontSize:12,lineHeight:1.5,color:"var(--color-text-secondary)"}}>{detalle.descripcion}</div>}
+          {detalle.descripcion&&<div style={{marginTop:12,borderTop:`0.5px solid ${B}`,paddingTop:10,fontSize:12,lineHeight:1.6,color:"var(--color-text-secondary)"}}>{detalle.descripcion}</div>}
           {detalle.tags&&<div style={{marginTop:10}}>{detalle.tags.split(",").map((t,i)=><span key={i} style={{background:"var(--color-background-secondary)",padding:"2px 7px",borderRadius:12,marginRight:4,fontSize:11}}>{t.trim()}</span>)}</div>}
-          {detalle.notas&&<div style={{marginTop:12,borderTop:`0.5px solid ${B}`,paddingTop:10,background:"var(--color-background-warning)",borderRadius:6,padding:"8px 10px",fontSize:12}}><div style={{fontSize:10,color:"var(--color-text-warning)",marginBottom:3,fontWeight:500}}>NOTAS</div>{detalle.notas}</div>}
+          {detalle.notas&&<div style={{marginTop:12,background:"var(--color-background-warning)",borderRadius:6,padding:"8px 10px",fontSize:12}}><div style={{fontSize:10,color:"var(--color-text-warning)",marginBottom:3,fontWeight:500}}>NOTAS</div>{detalle.notas}</div>}
         </div>
 
-        {/* Visualizador */}
         <div style={{background:"var(--color-background-primary)",border:`0.5px solid ${B}`,borderRadius:"var(--border-radius-lg)",overflow:"hidden",minHeight:600}}>
-          {detalle.extension==='.pdf'&&(
-            pdfLoad
-              ? <div style={{display:"flex",alignItems:"center",justifyContent:"center",padding:"3rem",color:"var(--color-text-secondary)"}}><i className="ti ti-loader-2 ti-spin" style={{marginRight:8}}/> Cargando PDF...</div>
-              : pdfUrl
-                ? <iframe src={pdfUrl} style={{width:"100%",height:700,border:"none"}} title={detalle.titulo}/>
-                : <div style={{padding:"2rem",textAlign:"center",color:"var(--color-text-secondary)"}}>No se pudo cargar el PDF.</div>
+          {detalle.extension==='.pdf'&&(pdfLoad
+            ? <div style={{display:"flex",alignItems:"center",justifyContent:"center",padding:"3rem",color:"var(--color-text-secondary)"}}><i className="ti ti-loader-2 ti-spin" style={{marginRight:8}}/> Cargando PDF...</div>
+            : pdfUrl
+              ? <iframe src={pdfUrl} style={{width:"100%",height:700,border:"none"}} title={detalle.titulo}/>
+              : <div style={{padding:"2rem",textAlign:"center",color:"var(--color-text-secondary)"}}>No se pudo cargar el PDF.</div>
           )}
           {(detalle.extension==='.docx'||detalle.extension==='.doc')&&(
             <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"3rem",gap:16,color:"var(--color-text-secondary)"}}>
               <i className="ti ti-file-type-docx" style={{fontSize:60,color:"var(--color-text-info)"}}/>
               <div style={{fontSize:14,fontWeight:500}}>Archivo Word</div>
               <div style={{fontSize:13,textAlign:"center",maxWidth:320}}>Los archivos DOCX no se pueden previsualizar en el navegador. Descargalo para abrirlo en Word.</div>
-              <a href="#" onClick={async e=>{e.preventDefault();const url=await fetchBlobUrl(`/api/escritos/file/${detalle.id}`);const a=document.createElement('a');a.href=url;a.download=detalle.original_name||detalle.titulo+".docx";a.click();URL.revokeObjectURL(url);}}
-                style={{fontSize:13,background:"var(--color-background-info)",color:"var(--color-text-info)",border:"0.5px solid var(--color-border-info)",padding:"8px 20px",borderRadius:"var(--border-radius-md)",cursor:"pointer",textDecoration:"none",display:"flex",alignItems:"center",gap:6}}>
+              <button onClick={async()=>{const url=await fetchBlobUrl(`/api/escritos/file/${detalle.id}`);const a=document.createElement('a');a.href=url;a.download=detalle.original_name||detalle.titulo+".docx";a.click();URL.revokeObjectURL(url);}}
+                style={{fontSize:13,background:"var(--color-background-info)",color:"var(--color-text-info)",border:"0.5px solid var(--color-border-info)",padding:"8px 20px",display:"flex",alignItems:"center",gap:6}}>
                 <i className="ti ti-download"/> Abrir en Word
-              </a>
+              </button>
             </div>
           )}
           {detalle.extension==='.txt'&&<TxtViewer id={detalle.id}/>}
@@ -424,13 +447,36 @@ function EscriitosPropios({ escritos, cats, areas, exps, areaColor, isAdmin, onR
     </div>
   );
 
+  // ── vista de módulos / acordeón ──────────────────────────────
+  const anyOpen = groups.some(([m]) => open[m]);
+
   return (
     <div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"1.25rem"}}>
-        <h1 style={{margin:0,fontSize:20,fontWeight:500}}>Escritos Propios</h1>
-        <button onClick={()=>setShowUp(true)} style={{fontSize:13,display:"flex",alignItems:"center",gap:6,background:"var(--color-background-info)",color:"var(--color-text-info)",border:"0.5px solid var(--color-border-info)"}}>
-          <i className="ti ti-upload"/> Cargar escrito
-        </button>
+        <div>
+          <h1 style={{margin:"0 0 2px",fontSize:20,fontWeight:500}}>Escritos Propios</h1>
+          <p style={{margin:0,fontSize:13,color:"var(--color-text-secondary)"}}>
+            {filtered.length} escrito(s) · {groups.length} materia(s)
+          </p>
+        </div>
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={()=>anyOpen?collapseAll():expandAll(groups)} style={{fontSize:13,display:"flex",alignItems:"center",gap:5}}>
+            <i className={`ti ${anyOpen?"ti-layout-list":"ti-layout-distribute-vertical"}`}/>
+            {anyOpen?"Colapsar todo":"Expandir todo"}
+          </button>
+          <button onClick={()=>setShowUp(true)} style={{fontSize:13,display:"flex",alignItems:"center",gap:6,background:"var(--color-background-info)",color:"var(--color-text-info)",border:"0.5px solid var(--color-border-info)"}}>
+            <i className="ti ti-upload"/> Cargar escrito
+          </button>
+        </div>
+      </div>
+
+      {/* Filtros */}
+      <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
+        <select value={areaF} onChange={e=>setAreaF(e.target.value)} style={{fontSize:13}}>
+          <option value="">Todas las áreas</option>
+          {areas.map(a=><option key={a.id}>{a.nombre}</option>)}
+        </select>
+        <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Buscar en todos los módulos..." style={{fontSize:13,flex:1,minWidth:220}}/>
       </div>
 
       {/* Modal de upload */}
@@ -441,191 +487,81 @@ function EscriitosPropios({ escritos, cats, areas, exps, areaColor, isAdmin, onR
               <h2 style={{margin:0,fontSize:16,fontWeight:500}}>Cargar nuevo escrito</h2>
               <button onClick={()=>setShowUp(false)} style={{border:"none",background:"none",cursor:"pointer",padding:4,fontSize:18}}><i className="ti ti-x"/></button>
             </div>
-            <EscritoUploadForm
-              areas={areas} cats={cats} exps={exps}
-              onSave={async()=>{ setShowUp(false); await onRefresh(); }}
-              onCancel={()=>setShowUp(false)}
-            />
+            <EscritoUploadForm areas={areas} cats={cats} exps={exps}
+              onSave={async()=>{setShowUp(false);await onRefresh();}}
+              onCancel={()=>setShowUp(false)}/>
           </div>
         </div>
       )}
 
-      {/* Filtros */}
-      <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
-        <select value={areaF} onChange={e=>setAreaF(e.target.value)} style={{fontSize:13}}>
-          <option value="">Todas las areas</option>
-          {areas.map(a=><option key={a.id}>{a.nombre}</option>)}
-        </select>
-        <select value={catF} onChange={e=>setCatF(e.target.value)} style={{fontSize:13}}>
-          <option value="">Todas las categorias</option>
-          {cats.map((c,i)=><option key={i}>{c}</option>)}
-        </select>
-        <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Buscar por titulo, descripcion, tags..." style={{fontSize:13,flex:1,minWidth:220}}/>
-        <span style={{fontSize:13,color:"var(--color-text-secondary)",alignSelf:"center"}}>{filt.length} escrito(s)</span>
-      </div>
-
-      {/* Grid de documentos */}
-      {filt.length===0
+      {/* Acordeón de materias */}
+      {groups.length === 0
         ? <div style={{textAlign:"center",padding:"3rem",color:"var(--color-text-secondary)"}}>
             <i className="ti ti-file-upload" style={{fontSize:48,display:"block",marginBottom:14,opacity:0.5}}/>
             <p style={{margin:"0 0 8px",fontSize:15,fontWeight:500}}>No hay escritos cargados</p>
-            <p style={{margin:0,fontSize:13}}>Carga PDFs, documentos Word o archivos de texto que ya tengas generados.</p>
+            <p style={{margin:0,fontSize:13}}>Cargá PDFs, documentos Word o archivos de texto.</p>
           </div>
-        : <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:12}}>
-            {filt.map(e=>{
-              const ic  = EXT_ICON[e.extension]  || "ti-file";
-              const col = EXT_COLOR[e.extension] || "secondary";
+        : <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {groups.map(([materia, docs]) => {
+              const isOpen   = !!open[materia];
+              // color del módulo basado en el área más frecuente del grupo
+              const topArea  = docs[0]?.area;
+              const modColor = topArea ? areaColor(topArea) : "secondary";
+
               return (
-                <div key={e.id} onClick={()=>openDetail(e)} style={{background:"var(--color-background-primary)",border:`0.5px solid ${B}`,borderRadius:"var(--border-radius-lg)",padding:"1rem",cursor:"pointer",transition:"border-color .15s"}}
-                  onMouseEnter={x=>x.currentTarget.style.borderColor=`var(--color-border-${col})`}
-                  onMouseLeave={x=>x.currentTarget.style.borderColor=B}>
-                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}>
-                    <div style={{width:38,height:38,borderRadius:8,background:`var(--color-background-${col})`,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                      <i className={`ti ${ic}`} style={{fontSize:20,color:`var(--color-text-${col})`}}/>
+                <div key={materia} style={{borderRadius:"var(--border-radius-lg)",overflow:"hidden",border:`0.5px solid ${B}`}}>
+                  {/* Cabecera del módulo */}
+                  <button onClick={()=>toggleOpen(materia)} style={{width:"100%",display:"flex",alignItems:"center",gap:12,padding:"12px 16px",background:isOpen?"var(--color-background-primary)":"var(--color-background-secondary)",border:"none",cursor:"pointer",textAlign:"left",borderBottom:isOpen?`0.5px solid ${B}`:"none"}}>
+                    <div style={{width:36,height:36,borderRadius:8,background:`var(--color-background-${modColor})`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                      <i className={isOpen?"ti ti-folder-open":"ti ti-folder"} style={{fontSize:18,color:`var(--color-text-${modColor})`}}/>
                     </div>
-                    <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
-                      {e.area&&<span style={{background:`var(--color-background-${areaColor(e.area)})`,color:`var(--color-text-${areaColor(e.area)})`,fontSize:10,padding:"2px 6px",borderRadius:10}}>{e.area}</span>}
-                      {e.size_bytes&&<span style={{fontSize:10,color:"var(--color-text-secondary)"}}>{fmtSize(e.size_bytes)}</span>}
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:14,fontWeight:500}}>{materia}</div>
+                      <div style={{fontSize:12,color:"var(--color-text-secondary)",marginTop:1}}>
+                        {docs.length} escrito{docs.length!==1?"s":""}
+                        {topArea&&materia!==topArea&&<span style={{marginLeft:8,opacity:0.7}}>· {topArea}</span>}
+                      </div>
                     </div>
-                  </div>
-                  <div style={{fontSize:13,fontWeight:500,marginBottom:4,lineHeight:1.4,overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{e.titulo}</div>
-                  {e.categoria&&<div style={{fontSize:11,color:"var(--color-text-secondary)",marginBottom:4}}>{e.categoria}</div>}
-                  {e.descripcion&&<div style={{fontSize:12,color:"var(--color-text-secondary)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{e.descripcion}</div>}
-                  {e.tags&&<div style={{marginTop:6}}>{e.tags.split(",").slice(0,3).map((t,i)=><span key={i} style={{background:"var(--color-background-secondary)",padding:"1px 5px",borderRadius:8,marginRight:3,fontSize:10}}>{t.trim()}</span>)}</div>}
-                  <div style={{fontSize:11,color:"var(--color-text-secondary)",marginTop:8}}>{e.creado_en?.slice(0,10)}</div>
+                    <i className={`ti ${isOpen?"ti-chevron-up":"ti-chevron-down"}`} style={{fontSize:16,color:"var(--color-text-secondary)",flexShrink:0}}/>
+                  </button>
+
+                  {/* Documentos del módulo */}
+                  {isOpen&&(
+                    <div style={{background:"var(--color-background-primary)"}}>
+                      {docs.map((e, idx) => {
+                        const ic  = EXT_ICON[e.extension]  || "ti-file";
+                        const ec  = EXT_COLOR[e.extension] || "secondary";
+                        return (
+                          <div key={e.id} onClick={()=>openDetail(e)} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 16px 10px 20px",borderTop:`0.5px solid ${B}`,cursor:"pointer",transition:"background .1s"}}
+                            onMouseEnter={x=>x.currentTarget.style.background="var(--color-background-secondary)"}
+                            onMouseLeave={x=>x.currentTarget.style.background="transparent"}>
+                            {/* letra del índice */}
+                            <div style={{width:20,textAlign:"right",fontSize:11,color:"var(--color-text-secondary)",flexShrink:0,fontFamily:"var(--font-mono)"}}>
+                              {String.fromCharCode(65+idx)<="Z"&&docs.length<=26?String.fromCharCode(65+idx):(idx+1)}
+                            </div>
+                            <div style={{width:28,height:28,borderRadius:6,background:`var(--color-background-${ec})`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                              <i className={`ti ${ic}`} style={{fontSize:14,color:`var(--color-text-${ec})`}}/>
+                            </div>
+                            <div style={{flex:1,minWidth:0}}>
+                              <div style={{fontSize:13,fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{e.titulo}</div>
+                              {e.descripcion&&<div style={{fontSize:11,color:"var(--color-text-secondary)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginTop:1}}>{e.descripcion}</div>}
+                            </div>
+                            <div style={{display:"flex",gap:8,alignItems:"center",flexShrink:0}}>
+                              {e.tags&&e.tags.split(",").slice(0,2).map((t,i)=><span key={i} style={{background:"var(--color-background-secondary)",padding:"2px 6px",borderRadius:10,fontSize:10,color:"var(--color-text-secondary)"}}>{t.trim()}</span>)}
+                              {e.size_bytes&&<span style={{fontSize:11,color:"var(--color-text-secondary)",minWidth:40,textAlign:"right"}}>{fmtSize(e.size_bytes)}</span>}
+                              <span style={{fontSize:11,color:"var(--color-text-secondary)",minWidth:72,textAlign:"right"}}>{e.creado_en?.slice(0,10)}</span>
+                              <i className="ti ti-chevron-right" style={{fontSize:13,color:"var(--color-text-secondary)"}}/>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
       }
-    </div>
-  );
-}
-
-// Visor de TXT con auth
-function TxtViewer({ id }) {
-  const [text, setText] = useState(null);
-  const [err,  setErr]  = useState(null);
-  useEffect(() => {
-    fetchBlobUrl(`/api/escritos/file/${id}`)
-      .then(url => fetch(url).then(r => r.text()).then(t => { setText(t); URL.revokeObjectURL(url); }))
-      .catch(() => setErr("No se pudo cargar el archivo"));
-  }, [id]);
-  if (err)   return <div style={{padding:"2rem",color:"var(--color-text-danger)"}}>{err}</div>;
-  if (!text) return <div style={{padding:"2rem",color:"var(--color-text-secondary)"}}><i className="ti ti-loader-2 ti-spin"/> Cargando...</div>;
-  return <pre style={{padding:"2rem",fontSize:13,lineHeight:1.8,whiteSpace:"pre-wrap",fontFamily:"var(--font-mono)",margin:0,maxHeight:700,overflowY:"auto"}}>{text}</pre>;
-}
-
-// Formulario de carga de nuevo escrito (con archivo)
-function EscritoUploadForm({ areas, cats, exps, onSave, onCancel }) {
-  const [form, setForm] = useState({ titulo:"", area:"", categoria:"", descripcion:"", tags:"", id_expediente:"", notas:"" });
-  const [file, setFile] = useState(null);
-  const [drag, setDrag] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState("");
-  const set = (k,v) => setForm(p=>({...p,[k]:v}));
-
-  const EXT = ['.pdf','.docx','.doc','.txt'];
-  const handleFile = f => {
-    if (!f) return;
-    const ext = f.name.slice(f.name.lastIndexOf('.')).toLowerCase();
-    if (!EXT.includes(ext)) return setErr(`Extension no permitida. Solo: ${EXT.join(', ')}`);
-    if (f.size > 30*1024*1024) return setErr("El archivo supera los 30 MB");
-    setFile(f); setErr("");
-    if (!form.titulo) set("titulo", f.name.replace(/\.[^.]+$/, ""));
-  };
-
-  const doUpload = async () => {
-    if (!file)             return setErr("Selecciona un archivo");
-    if (!form.titulo.trim()) return setErr("Ingresa un titulo");
-    setLoading(true); setErr("");
-    const fd = new FormData();
-    fd.append("archivo", file);
-    Object.entries(form).forEach(([k,v]) => { if (v) fd.append(k, v); });
-    try { await uploadFile("/api/escritos/upload", fd); await onSave(); }
-    catch(e) { setErr(e.message||"Error al subir"); }
-    setLoading(false);
-  };
-
-  return (
-    <div style={{display:"flex",flexDirection:"column",gap:12}}>
-      {/* Drop zone */}
-      <div
-        onDragOver={e=>{e.preventDefault();setDrag(true);}} onDragLeave={()=>setDrag(false)}
-        onDrop={e=>{e.preventDefault();setDrag(false);handleFile(e.dataTransfer.files[0]);}}
-        onClick={()=>document.getElementById("escrito-file-inp").click()}
-        style={{border:`2px dashed ${drag?"var(--color-border-info)":B}`,borderRadius:"var(--border-radius-lg)",padding:"1.5rem",textAlign:"center",cursor:"pointer",background:drag?"var(--color-background-info)":"var(--color-background-secondary)",transition:"all .15s"}}>
-        <input id="escrito-file-inp" type="file" accept=".pdf,.docx,.doc,.txt" style={{display:"none"}}
-          onChange={e=>handleFile(e.target.files[0])} onClick={e=>{e.stopPropagation();}}/>
-        {file
-          ? <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
-              <i className="ti ti-file-check" style={{fontSize:32,color:"var(--color-text-success)"}}/>
-              <div style={{fontSize:14,fontWeight:500}}>{file.name}</div>
-              <div style={{fontSize:12,color:"var(--color-text-secondary)"}}>{(file.size/1024).toFixed(0)} KB</div>
-              <button onClick={e=>{e.stopPropagation();setFile(null);}} style={{fontSize:12,marginTop:4}}>Cambiar archivo</button>
-            </div>
-          : <div>
-              <i className="ti ti-upload" style={{fontSize:32,color:"var(--color-text-secondary)",display:"block",marginBottom:8}}/>
-              <div style={{fontSize:14,fontWeight:500,marginBottom:4}}>Arrastra el archivo o haz click</div>
-              <div style={{fontSize:12,color:"var(--color-text-secondary)"}}>PDF, DOCX, DOC, TXT — maximo 30 MB</div>
-            </div>
-        }
-      </div>
-
-      <Campo label="Titulo *"><input value={form.titulo} onChange={e=>set("titulo",e.target.value)} style={{width:"100%",marginTop:4}} placeholder="Nombre descriptivo del documento"/></Campo>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-        <Campo label="Area">
-          <select value={form.area} onChange={e=>set("area",e.target.value)} style={{width:"100%",marginTop:4}}>
-            <option value="">— Sin area —</option>
-            {areas.map(a=><option key={a.id}>{a.nombre}</option>)}
-          </select>
-        </Campo>
-        <Campo label="Categoria">
-          <input value={form.categoria} onChange={e=>set("categoria",e.target.value)} style={{width:"100%",marginTop:4}} list="cats-list" placeholder="Ej: Contratos, Demandas..."/>
-          <datalist id="cats-list">{cats.map((c,i)=><option key={i} value={c}/>)}</datalist>
-        </Campo>
-      </div>
-      <Campo label="Expediente relacionado">
-        <select value={form.id_expediente} onChange={e=>set("id_expediente",e.target.value)} style={{width:"100%",marginTop:4}}>
-          <option value="">— Sin expediente —</option>
-          {exps.map(e=><option key={e.id} value={e.id}>{e.numero} · {e.caratula}</option>)}
-        </select>
-      </Campo>
-      <Campo label="Descripcion"><textarea value={form.descripcion} onChange={e=>set("descripcion",e.target.value)} rows={2} style={{width:"100%",marginTop:4}}/></Campo>
-      <Campo label="Tags (separados por coma)"><input value={form.tags} onChange={e=>set("tags",e.target.value)} style={{width:"100%",marginTop:4}} placeholder="contrato, locacion, rescision"/></Campo>
-      <Campo label="Notas internas"><textarea value={form.notas} onChange={e=>set("notas",e.target.value)} rows={2} style={{width:"100%",marginTop:4,fontSize:12}}/></Campo>
-      {err&&<div style={{color:"var(--color-text-danger)",fontSize:13,padding:"6px 10px",background:"var(--color-background-danger)",borderRadius:6}}>{err}</div>}
-      <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:4}}>
-        <button onClick={onCancel} disabled={loading}>Cancelar</button>
-        <button onClick={doUpload} disabled={loading||!file} style={{background:"var(--color-background-info)",color:"var(--color-text-info)",border:"0.5px solid var(--color-border-info)",display:"flex",alignItems:"center",gap:6}}>
-          {loading?<><i className="ti ti-loader-2 ti-spin"/>  Subiendo...</>:<><i className="ti ti-upload"/> Subir escrito</>}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// Formulario de edicion de metadatos (sin remplazar archivo)
-function EscritoMetaForm({ initial, areas, cats, exps, onSave, onCancel }) {
-  const [form, setForm] = useState({ titulo:initial.titulo||"", area:initial.area||"", categoria:initial.categoria||"", descripcion:initial.descripcion||"", tags:initial.tags||"", id_expediente:initial.id_expediente||"", notas:initial.notas||"" });
-  const [loading, setLoading] = useState(false);
-  const set = (k,v) => setForm(p=>({...p,[k]:v}));
-  const doSave = async () => { setLoading(true); try { await onSave(form); } catch(e) { alert(e.message); } setLoading(false); };
-  return (
-    <div style={{display:"flex",flexDirection:"column",gap:10}}>
-      <Campo label="Titulo *"><input value={form.titulo} onChange={e=>set("titulo",e.target.value)} style={{width:"100%",marginTop:4}}/></Campo>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-        <Campo label="Area"><select value={form.area} onChange={e=>set("area",e.target.value)} style={{width:"100%",marginTop:4}}><option value="">— Sin area —</option>{areas.map(a=><option key={a.id}>{a.nombre}</option>)}</select></Campo>
-        <Campo label="Categoria"><input value={form.categoria} onChange={e=>set("categoria",e.target.value)} style={{width:"100%",marginTop:4}} list="cats-list2"/><datalist id="cats-list2">{cats.map((c,i)=><option key={i} value={c}/>)}</datalist></Campo>
-      </div>
-      <Campo label="Expediente"><select value={form.id_expediente} onChange={e=>set("id_expediente",e.target.value)} style={{width:"100%",marginTop:4}}><option value="">— Sin expediente —</option>{exps.map(e=><option key={e.id} value={e.id}>{e.numero} · {e.caratula}</option>)}</select></Campo>
-      <Campo label="Descripcion"><textarea value={form.descripcion} onChange={e=>set("descripcion",e.target.value)} rows={2} style={{width:"100%",marginTop:4}}/></Campo>
-      <Campo label="Tags"><input value={form.tags} onChange={e=>set("tags",e.target.value)} style={{width:"100%",marginTop:4}}/></Campo>
-      <Campo label="Notas"><textarea value={form.notas} onChange={e=>set("notas",e.target.value)} rows={2} style={{width:"100%",marginTop:4,fontSize:12}}/></Campo>
-      <div style={{display:"flex",justifyContent:"flex-end",gap:8}}>
-        <button onClick={onCancel} disabled={loading}>Cancelar</button>
-        <button onClick={doSave} disabled={loading||!form.titulo} style={{background:"var(--color-background-info)",color:"var(--color-text-info)",border:"0.5px solid var(--color-border-info)"}}>{loading?<i className="ti ti-loader-2 ti-spin"/>:"Guardar"}</button>
-      </div>
     </div>
   );
 }
