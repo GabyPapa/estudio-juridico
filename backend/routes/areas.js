@@ -28,6 +28,7 @@ router.post('/', authMiddleware, requireRol('administrador','socio'), async (req
 
 router.put('/:id', authMiddleware, requireRol('administrador','socio'), async (req, res) => {
   const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: 'ID invalido' });
   const { nombre, icon, color, descripcion, orden, activo } = req.body;
   if (!nombre?.trim()) return res.status(400).json({ error: 'nombre requerido' });
   try {
@@ -45,6 +46,7 @@ router.put('/:id', authMiddleware, requireRol('administrador','socio'), async (r
 
 router.delete('/:id', authMiddleware, requireRol('administrador'), async (req, res) => {
   const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: 'ID invalido' });
   try {
     // Soft delete — no se puede borrar si tiene expedientes
     const exp = await query('SELECT COUNT(*) AS c FROM Expedientes WHERE area=(SELECT nombre FROM AreasEstudio WHERE id=@id)', { id });

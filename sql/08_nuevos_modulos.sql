@@ -226,9 +226,7 @@ SELECT numero, nombre, tipo, organismo, fecha_sancion, fecha_vigencia, area, res
    'https://www.infoleg.gob.ar/infolegInternet/anexos/150000-154999/152155/norma.htm'),
   ('24522', 'Ley de Concursos y Quiebras', 'ley', 'Honorable Congreso de la Nacion', '1995-07-07', '1995-08-09', 'Comercial',
    'Regula el concurso preventivo y la quiebra de personas humanas y juridicas. Acuerdos preventivos extrajudiciales.',
-   'https://www.infoleg.gob.ar/infolegInternet/anexos/0-4999/1
-
-16/texact.htm')
+   'https://www.infoleg.gob.ar/infolegInternet/anexos/0-4999/116/texact.htm')
 ) AS src(numero, nombre, tipo, organismo, fecha_sancion, fecha_vigencia, area, resumen, url_infoleg)
 WHERE NOT EXISTS (SELECT 1 FROM Leyes l WHERE l.numero = src.numero);
 GO

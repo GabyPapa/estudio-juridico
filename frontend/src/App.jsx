@@ -290,8 +290,8 @@ function AbogadoForm({initial,onSave,onCancel,loading}) {
       <Campo label="Email"><input type="email" value={d.email||""} onChange={e=>set("email",e.target.value)} style={{width:"100%",marginTop:4}}/></Campo>
       <Campo label="Telefono"><input value={d.tel||""} onChange={e=>set("tel",e.target.value)} style={{width:"100%",marginTop:4}}/></Campo>
       <Campo label="Celular"><input value={d.celular||""} onChange={e=>set("celular",e.target.value)} style={{width:"100%",marginTop:4}}/></Campo>
-      <Campo label="Domicilio"><input value={d.domicilio||""} onChange={e=>set("domicilio",e.target.value)} style={{width:"100%",marginTop:4}}/></Campo>
-      <Campo label="Notas internas"><textarea rows={2} value={d.notas_internas||""} onChange={e=>set("notas_internas",e.target.value)} style={{width:"100%",fontSize:12,marginTop:4}}/></Campo>
+      <Campo label="Domicilio" col="1/-1"><input value={d.domicilio||""} onChange={e=>set("domicilio",e.target.value)} style={{width:"100%",marginTop:4}}/></Campo>
+      <Campo label="Notas internas" col="1/-1"><textarea rows={2} value={d.notas_internas||""} onChange={e=>set("notas_internas",e.target.value)} style={{width:"100%",fontSize:12,marginTop:4}}/></Campo>
     </Grid>
     <FormFooter onCancel={onCancel} onSave={()=>onSave(d)} loading={loading} disabled={!d.nombre}/>
   </div>;
@@ -313,6 +313,11 @@ function EscriitosPropios({ escritos, cats, areas, exps, areaColor, isAdmin, onR
   const [pdfLoad,  setPdfLoad]  = useState(false);
 
   const clearPdf = () => { if (pdfUrl) { URL.revokeObjectURL(pdfUrl); setPdfUrl(null); } };
+
+  // Cleanup: revocar blob URL al desmontar el componente o al cambiar de ruta
+  useEffect(() => {
+    return () => { if (pdfUrl) URL.revokeObjectURL(pdfUrl); };
+  }, [pdfUrl]);
 
   const openDetail = async (e) => {
     clearPdf();
@@ -566,6 +571,186 @@ function EscriitosPropios({ escritos, cats, areas, exps, areaColor, isAdmin, onR
   );
 }
 
+// Visor de TXT autenticado
+function TxtViewer({ id }) {
+  const [text, setText] = useState(null);
+  const [err,  setErr]  = useState(null);
+  useEffect(() => {
+    fetchBlobUrl(`/api/escritos/file/${id}`)
+      .then(url => fetch(url).then(r => r.text()).then(t => { setText(t); URL.revokeObjectURL(url); }))
+      .catch(() => setErr("No se pudo cargar el archivo"));
+  }, [id]);
+  if (err)   return <div style={{padding:"2rem",color:"var(--color-text-danger)"}}>{err}</div>;
+  if (!text) return <div style={{padding:"2rem",color:"var(--color-text-secondary)"}}><i className="ti ti-loader-2 ti-spin"/> Cargando...</div>;
+  return <pre style={{padding:"2rem",fontSize:13,lineHeight:1.8,whiteSpace:"pre-wrap",fontFamily:"var(--font-mono)",margin:0,maxHeight:700,overflowY:"auto"}}>{text}</pre>;
+}
+
+// Formulario de carga de archivo nuevo
+function EscritoUploadForm({ areas, cats, exps, onSave, onCancel }) {
+  const [form, setForm] = useState({ titulo:"", area:"", categoria:"", descripcion:"", tags:"", id_expediente:"", notas:"" });
+  const [file, setFile] = useState(null);
+  const [drag, setDrag] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
+  const set = (k,v) => setForm(p=>({...p,[k]:v}));
+  const EXT = ['.pdf','.docx','.doc','.txt'];
+
+  const handleFile = f => {
+    if (!f) return;
+    const ext = f.name.slice(f.name.lastIndexOf('.')).toLowerCase();
+    if (!EXT.includes(ext)) return setErr(`Extensión no permitida. Solo: ${EXT.join(', ')}`);
+    if (f.size > 30*1024*1024) return setErr("El archivo supera los 30 MB");
+    setFile(f); setErr("");
+    if (!form.titulo) set("titulo", f.name.replace(/\.[^.]+$/, ""));
+  };
+
+  const resetInput = () => {
+    const inp = document.getElementById("escrito-file-inp");
+    if (inp) inp.value = "";
+  };
+
+  const doUpload = async () => {
+    if (!file)               return setErr("Seleccioná un archivo");
+    if (!form.titulo.trim()) return setErr("Ingresá un título");
+    setLoading(true); setErr("");
+    const fd = new FormData();
+    fd.append("archivo", file);
+    Object.entries(form).forEach(([k,v]) => { if (v) fd.append(k, v); });
+    try { await uploadFile("/api/escritos/upload", fd); await onSave(); }
+    catch(e) { setErr(e.message || "Error al subir"); }
+    setLoading(false);
+  };
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:12}}>
+      {/* Drop zone */}
+      <div
+        onDragOver={e=>{e.preventDefault();setDrag(true);}}
+        onDragLeave={()=>setDrag(false)}
+        onDrop={e=>{e.preventDefault();setDrag(false);handleFile(e.dataTransfer.files[0]);}}
+        onClick={()=>document.getElementById("escrito-file-inp").click()}
+        style={{border:`2px dashed ${drag?"var(--color-border-info)":B}`,borderRadius:"var(--border-radius-lg)",padding:"1.5rem",textAlign:"center",cursor:"pointer",background:drag?"var(--color-background-info)":"var(--color-background-secondary)",transition:"all .15s"}}>
+        <input
+          id="escrito-file-inp" type="file" accept=".pdf,.docx,.doc,.txt"
+          style={{display:"none"}}
+          onClick={e=>e.stopPropagation()}
+          onChange={e=>handleFile(e.target.files[0])}
+        />
+        {file
+          ? <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
+              <i className="ti ti-file-check" style={{fontSize:32,color:"var(--color-text-success)"}}/>
+              <div style={{fontSize:14,fontWeight:500}}>{file.name}</div>
+              <div style={{fontSize:12,color:"var(--color-text-secondary)"}}>{(file.size/1024).toFixed(0)} KB</div>
+              <button onClick={e=>{e.stopPropagation();setFile(null);resetInput();}} style={{fontSize:12,marginTop:4}}>
+                Cambiar archivo
+              </button>
+            </div>
+          : <div>
+              <i className="ti ti-upload" style={{fontSize:32,color:"var(--color-text-secondary)",display:"block",marginBottom:8}}/>
+              <div style={{fontSize:14,fontWeight:500,marginBottom:4}}>Arrastrá el archivo o hacé click</div>
+              <div style={{fontSize:12,color:"var(--color-text-secondary)"}}>PDF, DOCX, DOC, TXT — máximo 30 MB</div>
+            </div>
+        }
+      </div>
+
+      <Campo label="Título *">
+        <input value={form.titulo} onChange={e=>set("titulo",e.target.value)} style={{width:"100%",marginTop:4}} placeholder="Nombre descriptivo del documento"/>
+      </Campo>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+        <Campo label="Área">
+          <select value={form.area} onChange={e=>set("area",e.target.value)} style={{width:"100%",marginTop:4}}>
+            <option value="">— Sin área —</option>
+            {areas.map(a=><option key={a.id}>{a.nombre}</option>)}
+          </select>
+        </Campo>
+        <Campo label="Materia / Categoría">
+          <input value={form.categoria} onChange={e=>set("categoria",e.target.value)} style={{width:"100%",marginTop:4}} list="cats-list" placeholder="Ej: Contratos, Demandas..."/>
+          <datalist id="cats-list">{cats.map((c,i)=><option key={i} value={c}/>)}</datalist>
+        </Campo>
+      </div>
+      <Campo label="Expediente relacionado">
+        <select value={form.id_expediente} onChange={e=>set("id_expediente",e.target.value)} style={{width:"100%",marginTop:4}}>
+          <option value="">— Sin expediente —</option>
+          {exps.map(e=><option key={e.id} value={e.id}>{e.numero} · {e.caratula}</option>)}
+        </select>
+      </Campo>
+      <Campo label="Descripción">
+        <textarea value={form.descripcion} onChange={e=>set("descripcion",e.target.value)} rows={2} style={{width:"100%",marginTop:4}}/>
+      </Campo>
+      <Campo label="Tags (separados por coma)">
+        <input value={form.tags} onChange={e=>set("tags",e.target.value)} style={{width:"100%",marginTop:4}} placeholder="contrato, locación, rescisión"/>
+      </Campo>
+      <Campo label="Notas internas">
+        <textarea value={form.notas} onChange={e=>set("notas",e.target.value)} rows={2} style={{width:"100%",marginTop:4,fontSize:12}}/>
+      </Campo>
+      {err&&<div style={{color:"var(--color-text-danger)",fontSize:13,padding:"6px 10px",background:"var(--color-background-danger)",borderRadius:6}}>{err}</div>}
+      <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:4}}>
+        <button onClick={onCancel} disabled={loading}>Cancelar</button>
+        <button onClick={doUpload} disabled={loading||!file} style={{background:"var(--color-background-info)",color:"var(--color-text-info)",border:"0.5px solid var(--color-border-info)",display:"flex",alignItems:"center",gap:6}}>
+          {loading?<><i className="ti ti-loader-2 ti-spin"/> Subiendo...</>:<><i className="ti ti-upload"/> Subir escrito</>}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Formulario de edición de metadata (sin reemplazar archivo)
+function EscritoMetaForm({ initial, areas, cats, exps, onSave, onCancel }) {
+  const [form, setForm] = useState({
+    titulo:        initial.titulo        || "",
+    area:          initial.area          || "",
+    categoria:     initial.categoria     || "",
+    descripcion:   initial.descripcion   || "",
+    tags:          initial.tags          || "",
+    id_expediente: initial.id_expediente || "",
+    notas:         initial.notas         || "",
+  });
+  const [loading, setLoading] = useState(false);
+  const set = (k,v) => setForm(p=>({...p,[k]:v}));
+  const doSave = async () => { setLoading(true); try { await onSave(form); } catch(e) { alert(e.message); } setLoading(false); };
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:10}}>
+      <Campo label="Título *">
+        <input value={form.titulo} onChange={e=>set("titulo",e.target.value)} style={{width:"100%",marginTop:4}}/>
+      </Campo>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+        <Campo label="Área">
+          <select value={form.area} onChange={e=>set("area",e.target.value)} style={{width:"100%",marginTop:4}}>
+            <option value="">— Sin área —</option>
+            {areas.map(a=><option key={a.id}>{a.nombre}</option>)}
+          </select>
+        </Campo>
+        <Campo label="Materia / Categoría">
+          <input value={form.categoria} onChange={e=>set("categoria",e.target.value)} style={{width:"100%",marginTop:4}} list="cats-list-meta"/>
+          <datalist id="cats-list-meta">{cats.map((c,i)=><option key={i} value={c}/>)}</datalist>
+        </Campo>
+      </div>
+      <Campo label="Expediente">
+        <select value={form.id_expediente} onChange={e=>set("id_expediente",e.target.value)} style={{width:"100%",marginTop:4}}>
+          <option value="">— Sin expediente —</option>
+          {exps.map(e=><option key={e.id} value={e.id}>{e.numero} · {e.caratula}</option>)}
+        </select>
+      </Campo>
+      <Campo label="Descripción">
+        <textarea value={form.descripcion} onChange={e=>set("descripcion",e.target.value)} rows={2} style={{width:"100%",marginTop:4}}/>
+      </Campo>
+      <Campo label="Tags">
+        <input value={form.tags} onChange={e=>set("tags",e.target.value)} style={{width:"100%",marginTop:4}}/>
+      </Campo>
+      <Campo label="Notas">
+        <textarea value={form.notas} onChange={e=>set("notas",e.target.value)} rows={2} style={{width:"100%",marginTop:4,fontSize:12}}/>
+      </Campo>
+      <div style={{display:"flex",justifyContent:"flex-end",gap:8}}>
+        <button onClick={onCancel} disabled={loading}>Cancelar</button>
+        <button onClick={doSave} disabled={loading||!form.titulo} style={{background:"var(--color-background-info)",color:"var(--color-text-info)",border:"0.5px solid var(--color-border-info)"}}>
+          {loading?<i className="ti ti-loader-2 ti-spin"/>:"Guardar"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+
 // ── Login ─────────────────────────────────────────────────────
 function LoginScreen({onLogin}) {
   const [email,setEmail]=useState("");
@@ -794,7 +979,7 @@ export default function App() {
   const btnNew=(type,title,data)=><button onClick={()=>openModal(type,"new",title,data)} style={{fontSize:13,display:"flex",alignItems:"center",gap:6,background:"var(--color-background-info)",color:"var(--color-text-info)",border:"0.5px solid var(--color-border-info)"}}><i className="ti ti-plus"/> Nuevo</button>;
   const btnBack=()=><button onClick={()=>setDetail(null)} style={{fontSize:13,display:"flex",alignItems:"center",gap:5,marginBottom:"1rem"}}><i className="ti ti-arrow-left" style={{fontSize:14}}/> Volver</button>;
   const pageHead=(title,right)=><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"1.25rem"}}><h1 style={{margin:0,fontSize:20,fontWeight:500}}>{title}</h1><div style={{display:"flex",gap:8}}>{right}</div></div>;
-  const filterBar=(...els)=><div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>{els}</div>;
+  const filterBar=(...els)=><div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>{els.map((el,i)=>el?<span key={i} style={{display:"contents"}}>{el}</span>:null)}</div>;
   const tabBar=(opts,val,set)=><div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap"}}>{opts.map(([v,l])=><button key={v} onClick={()=>set(v)} style={{fontSize:13,background:val===v?"var(--color-background-info)":"var(--color-background-secondary)",color:val===v?"var(--color-text-info)":"var(--color-text-secondary)",border:val===v?"0.5px solid var(--color-border-info)":`0.5px solid ${B}`,borderRadius:20,padding:"4px 14px",cursor:"pointer"}}>{l}</button>)}</div>;
   const card=(children,extra={})=><div style={{background:"var(--color-background-primary)",border:`0.5px solid ${B}`,borderRadius:"var(--border-radius-lg)",overflow:"hidden",...extra}}>{children}</div>;
 

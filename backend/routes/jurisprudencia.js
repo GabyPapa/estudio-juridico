@@ -42,6 +42,7 @@ router.post('/', authMiddleware, async (req, res) => {
 
 router.put('/:id', authMiddleware, async (req, res) => {
   const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: 'ID invalido' });
   const { caratula,tribunal,sala,fecha_fallo,area,tema,voces,resumen,texto,cita,publicado_en,url } = req.body;
   try {
     const r = await query(
@@ -60,6 +61,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
 router.delete('/:id', authMiddleware, requireRol('administrador','socio'), async (req, res) => {
   const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: 'ID invalido' });
   try {
     await query('UPDATE Jurisprudencia SET activo=0 WHERE id=@id', { id });
     res.json({ ok: true });

@@ -31,8 +31,10 @@ const upload = multer({
   limits: { fileSize: 30 * 1024 * 1024 },   // 30 MB
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
+    if (ALLOWED_EXT.includes(ext) && ALLOWED_MIME.includes(file.mimetype)) return cb(null, true);
+    // Algunos clientes envían text/plain para .txt — permitir si la extensión es válida
     if (ALLOWED_EXT.includes(ext)) return cb(null, true);
-    cb(new Error(`Extension no permitida. Solo: ${ALLOWED_EXT.join(', ')}`));
+    cb(new Error(`Tipo de archivo no permitido. Solo: ${ALLOWED_EXT.join(', ')}`));
   },
 });
 
@@ -139,6 +141,7 @@ router.post('/upload', authMiddleware, (req, res, next) => {
 // ── PUT /:id — editar metadata (no reemplaza archivo) ────
 router.put('/:id', authMiddleware, async (req, res) => {
   const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: 'ID invalido' });
   const { titulo, area, categoria, descripcion, tags, id_expediente, notas } = req.body;
   if (!titulo?.trim()) return res.status(400).json({ error: 'titulo requerido' });
   try {
@@ -166,6 +169,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
 // ── DELETE /:id — eliminar ────────────────────────────────
 router.delete('/:id', authMiddleware, requireRol('administrador', 'socio'), async (req, res) => {
   const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: 'ID invalido' });
   try {
     const r = await query('SELECT filename FROM EscritosPersonales WHERE id=@id', { id });
     if (r.recordset[0]) {

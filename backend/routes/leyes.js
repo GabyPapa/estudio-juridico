@@ -47,6 +47,7 @@ router.post('/', authMiddleware, async (req, res) => {
 
 router.put('/:id', authMiddleware, async (req, res) => {
   const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: 'ID invalido' });
   const { numero,nombre,tipo,organismo,fecha_sancion,fecha_promulgacion,fecha_vigencia,
           boletin_numero,boletin_fecha,area,resumen,texto,url_infoleg } = req.body;
   try {
@@ -69,6 +70,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
 router.delete('/:id', authMiddleware, requireRol('administrador','socio'), async (req, res) => {
   const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: 'ID invalido' });
   try {
     await query('UPDATE Leyes SET activo=0 WHERE id=@id', { id });
     res.json({ ok: true });
