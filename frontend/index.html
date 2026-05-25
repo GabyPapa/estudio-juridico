@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sistema Legal — Estudio Jurídico</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" />
+    <style>
+      :root {
+        --font-sans: system-ui, -apple-system, sans-serif;
+        --font-serif: Georgia, serif;
+        --font-mono: 'Courier New', monospace;
+        --color-background-primary: #ffffff;
+        --color-background-secondary: #f3f4f6;
+        --color-background-tertiary: #e5e7eb;
+        --color-background-info: #eff6ff;
+        --color-background-success: #f0fdf4;
+        --color-background-warning: #fffbeb;
+        --color-background-danger: #fef2f2;
+        --color-text-primary: #111827;
+        --color-text-secondary: #6b7280;
+        --color-text-info: #1d4ed8;
+        --color-text-success: #15803d;
+        --color-text-warning: #b45309;
+        --color-text-danger: #b91c1c;
+        --color-border-tertiary: #e5e7eb;
+        --color-border-secondary: #d1d5db;
+        --color-border-primary: #9ca3af;
+        --color-border-info: #93c5fd;
+        --color-border-success: #86efac;
+        --color-border-warning: #fcd34d;
+        --color-border-danger: #fca5a5;
+        --border-radius-md: 8px;
+        --border-radius-lg: 12px;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --color-background-primary: #1f2937;
+          --color-background-secondary: #111827;
+          --color-background-tertiary: #0f172a;
+          --color-background-info: #1e3a5f;
+          --color-background-success: #14532d;
+          --color-background-warning: #451a03;
+          --color-background-danger: #450a0a;
+          --color-text-primary: #f9fafb;
+          --color-text-secondary: #9ca3af;
+          --color-text-info: #93c5fd;
+          --color-text-success: #86efac;
+          --color-text-warning: #fcd34d;
+          --color-text-danger: #fca5a5;
+          --color-border-tertiary: #374151;
+          --color-border-secondary: #4b5563;
+          --color-border-primary: #6b7280;
+          --color-border-info: #1d4ed8;
+          --color-border-success: #15803d;
+          --color-border-warning: #b45309;
+          --color-border-danger: #b91c1c;
+        }
+        select, input, textarea, button {
+          background: #1f2937 !important;
+          color: #f9fafb !important;
+          border-color: #374151 !important;
+        }
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; font-family: var(--font-sans); background: var(--color-background-tertiary); min-height: 100vh; }
+      #root { min-height: 100vh; }
+      select, input, textarea, button {
+        font-family: inherit; font-size: 13px;
+        padding: 7px 10px; border: 0.5px solid var(--color-border-secondary);
+        border-radius: var(--border-radius-md); background: var(--color-background-primary);
+        color: var(--color-text-primary); outline: none; transition: border-color .15s;
+      }
+      select:focus, input:focus, textarea:focus { border-color: var(--color-border-info); }
+      button { cursor: pointer; }
+      button:hover { opacity: 0.85; }
+      button:active { transform: scale(0.98); }
+      button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+      textarea { resize: vertical; }
+      .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border-width: 0; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .ti-spin { display: inline-block; animation: spin 1s linear infinite; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
