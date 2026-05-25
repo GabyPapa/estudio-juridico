@@ -147,14 +147,22 @@ END
 GO
 
 -- Indices
-CREATE INDEX ix_Contrapartes_tipo    ON Contrapartes(tipo);
-CREATE INDEX ix_Contrapartes_nombre  ON Contrapartes(nombre);
-CREATE INDEX ix_Doctrina_area        ON Doctrina(area);
-CREATE INDEX ix_Doctrina_autor       ON Doctrina(autor);
-CREATE INDEX ix_Jurisprudencia_area  ON Jurisprudencia(area);
-CREATE INDEX ix_Jurisprudencia_fecha ON Jurisprudencia(fecha_fallo);
-CREATE INDEX ix_Leyes_tipo           ON Leyes(tipo);
-CREATE INDEX ix_Leyes_area           ON Leyes(area);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='ix_Contrapartes_tipo'    AND object_id=OBJECT_ID('Contrapartes'))
+    CREATE INDEX ix_Contrapartes_tipo    ON Contrapartes(tipo);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='ix_Contrapartes_nombre'  AND object_id=OBJECT_ID('Contrapartes'))
+    CREATE INDEX ix_Contrapartes_nombre  ON Contrapartes(nombre);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='ix_Doctrina_area'        AND object_id=OBJECT_ID('Doctrina'))
+    CREATE INDEX ix_Doctrina_area        ON Doctrina(area);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='ix_Doctrina_autor'       AND object_id=OBJECT_ID('Doctrina'))
+    CREATE INDEX ix_Doctrina_autor       ON Doctrina(autor);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='ix_Jurisprudencia_area'  AND object_id=OBJECT_ID('Jurisprudencia'))
+    CREATE INDEX ix_Jurisprudencia_area  ON Jurisprudencia(area);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='ix_Jurisprudencia_fecha' AND object_id=OBJECT_ID('Jurisprudencia'))
+    CREATE INDEX ix_Jurisprudencia_fecha ON Jurisprudencia(fecha_fallo);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='ix_Leyes_tipo'           AND object_id=OBJECT_ID('Leyes'))
+    CREATE INDEX ix_Leyes_tipo           ON Leyes(tipo);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='ix_Leyes_area'           AND object_id=OBJECT_ID('Leyes'))
+    CREATE INDEX ix_Leyes_area           ON Leyes(area);
 GO
 
 -- Seed doctrina

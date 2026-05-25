@@ -27,8 +27,10 @@ BEGIN
 END
 GO
 
-CREATE INDEX ix_EscritosPersonales_area  ON EscritosPersonales(area);
-CREATE INDEX ix_EscritosPersonales_cat   ON EscritosPersonales(categoria);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='ix_EscritosPersonales_area' AND object_id=OBJECT_ID('EscritosPersonales'))
+    CREATE INDEX ix_EscritosPersonales_area  ON EscritosPersonales(area);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='ix_EscritosPersonales_cat'  AND object_id=OBJECT_ID('EscritosPersonales'))
+    CREATE INDEX ix_EscritosPersonales_cat   ON EscritosPersonales(categoria);
 GO
 
 PRINT '09_escritos_propios.sql ejecutado OK.';
