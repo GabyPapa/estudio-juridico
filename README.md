@@ -1,175 +1,129 @@
-# ⚖️ Sistema de Gestión — Estudio Jurídico
+# Sistema de Gestión — Estudio Jurídico
 
-Sistema full-stack para gestión de estudios jurídicos: expedientes, clientes, abogados, exportaciones y alertas automáticas de vencimiento.
+Sistema de gestión integral para estudios jurídicos argentinos.
 
-**Stack:** Node.js · Express · SQL Server · React · Vite
+## Requisitos previos
+
+- **Windows 10/11** (64-bit)
+- **Node.js 18+** → https://nodejs.org (descargar LTS)
+- **SQL Server Express** → ya instalado (SQLEXPRESS)
+- **SSMS** (SQL Server Management Studio) → solo si querés revisar la BD
 
 ---
 
-## Estructura
+## Instalación (primera vez)
+
+### Paso 1 — Configurar SQL Server
+Doble clic en **`CONFIGURAR_SQL.bat`** (necesita permisos de administrador).
+
+Esto:
+- Habilita TCP/IP en SQL Server
+- Inicia el servicio SQL Server Browser
+- Crea la base de datos `EstudioJuridico`
+- Ejecuta los 9 scripts SQL automáticamente (si `sqlcmd` está en PATH)
+
+> Si `sqlcmd` **no está en PATH**, ejecutar manualmente en SSMS los archivos
+> de la carpeta `sql/` en orden del 01 al 09.
+
+### Paso 2 — Instalar dependencias Node.js
+Doble clic en **`INSTALAR.bat`**
+
+Instala `node_modules` para backend y frontend (~2 min).
+
+### Paso 3 — Arrancar la app
+Doble clic en **`INICIAR.bat`**
+
+Abre dos terminales (backend + frontend) y el navegador en `http://localhost:5173`.
+
+---
+
+## Credenciales por defecto
+
+| Campo      | Valor                    |
+|------------|--------------------------|
+| Email      | p.gabrielpapa@gmail.com  |
+| Contraseña | 22715293                 |
+| Rol        | Administrador            |
+
+---
+
+## Estructura del proyecto
 
 ```
 estudio-juridico/
 ├── backend/
-│   ├── routes/
-│   │   ├── auth.js         → Login, usuarios (JWT)
-│   │   ├── expedientes.js  → CRUD expedientes + bitácora
-│   │   ├── clientes.js     → CRUD clientes
-│   │   ├── abogados.js     → CRUD abogados
-│   │   └── exportar.js     → PDF y Excel
-│   ├── middleware/auth.js  → JWT + control de roles
-│   ├── services/alertas.js → Cron de emails (node-cron)
-│   ├── scripts/seed.js     → Carga usuarios iniciales con bcrypt
-│   ├── db.js               → Pool SQL Server (singleton seguro)
-│   └── server.js           → Punto de entrada Express
+│   ├── routes/           # API REST (Express)
+│   ├── services/         # Alertas por email
+│   ├── middleware/        # Auth JWT
+│   ├── uploads/escritos/ # Archivos subidos (se crea automático)
+│   ├── .env              # Configuración (DB, JWT, SMTP)
+│   └── server.js
 ├── frontend/
 │   └── src/
-│       ├── App.jsx         → UI React completa
-│       └── api.js          → Cliente fetch con JWT
+│       ├── App.jsx       # Toda la UI (React + Vite)
+│       └── api.js        # Cliente HTTP
 ├── sql/
-│   ├── 01_schema.sql       → Tablas, constraints, índices
-│   └── 02_seed.sql         → Datos de ejemplo (sin usuarios)
-└── README.md
+│   ├── 01_schema.sql     # Esquema base
+│   ├── 02_seed.sql       # Datos de ejemplo
+│   ├── 03_expansion.sql  # Columnas extra abogados
+│   ├── 04_seed_expansion.sql
+│   ├── 05_modelos.sql    # 15 modelos base
+│   ├── 06_usuarios.sql   # Usuarios del sistema
+│   ├── 07_modelos_ampliados.sql  # 48 modelos
+│   ├── 08_nuevos_modulos.sql     # Areas, Contrapartes, Doctrina, Jurisprudencia, Leyes
+│   └── 09_escritos_propios.sql   # Módulo de upload de documentos
+├── CONFIGURAR_SQL.bat    # Configura SQL Server (1ra vez)
+├── INSTALAR.bat          # npm install (1ra vez)
+└── INICIAR.bat           # Arrancar la app
 ```
 
 ---
 
-## Setup rápido
+## Módulos disponibles
 
-### 1 — Base de datos
-
-Ejecutar en SQL Server Management Studio o Azure Data Studio:
-
-```sql
--- Primero el schema
--- Archivo: sql/01_schema.sql
-
--- Luego los datos de ejemplo (opcional)
--- Archivo: sql/02_seed.sql
-```
-
-### 2 — Backend
-
-```bash
-cd backend
-npm install
-cp .env.example .env
-# → Editar .env con tus credenciales de SQL Server y SMTP
-node scripts/seed.js   # crea usuarios iniciales
-npm run dev            # nodemon
-```
-
-### 3 — Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev   # Vite en http://localhost:5173
-```
+| Módulo            | Descripción |
+|-------------------|-------------|
+| Panel General     | Dashboard con métricas y vencimientos |
+| Áreas del Estudio | Áreas configurables con ícono y color |
+| Expedientes       | CRUD completo + export PDF/Excel |
+| Clientes          | Base de clientes + export Excel |
+| Contrapartes      | Personas físicas/jurídicas con abogado contrario |
+| Abogados          | Internos y externos |
+| Juzgados          | Base de juzgados con secretarías |
+| Modelos           | 63 modelos jurídicos con variables |
+| Escritos Propios  | Upload de PDF/DOCX/TXT organizados por materia |
+| Doctrina          | Biblioteca de doctrina jurídica |
+| Jurisprudencia    | Base de fallos con visualizador |
+| Legislación       | Leyes, decretos, resoluciones |
+| Investigación IA  | Búsqueda asistida con Claude + web |
 
 ---
 
-## Usuarios iniciales
+## Configurar alertas de email (opcional)
 
-Creados por `backend/scripts/seed.js`:
+Editar `backend/.env`:
 
-| Email | Contraseña | Rol |
-|-------|-----------|-----|
-| `admin@estudio.com` | `Admin2024!` | Administrador |
-| `c.rodriguez@estudio.com` | `Rodrigo2024!` | Socio |
-| `a.garcia@estudio.com` | `Garcia2024!` | Abogado |
-| `m.lopez@estudio.com` | `Lopez2024!` | Abogado |
-| `v.sosa@estudio.com` | `Sosa2024!` | Abogado |
-
----
-
-## Roles y permisos
-
-| Acción | Socio | Abogado | Administrador |
-|--------|-------|---------|---------------|
-| Ver expedientes | ✅ Todos | ✅ Solo los propios | ✅ Todos |
-| Crear / editar expedientes | ✅ | ✅ Solo los propios | ✅ |
-| Crear / editar clientes | ✅ | ❌ | ✅ |
-| Crear / editar abogados | ✅ | ❌ | ✅ |
-| Exportar PDF / Excel | ✅ | ✅ | ✅ |
-| Gestión de usuarios | ❌ | ❌ | ✅ |
-
----
-
-## Alertas de vencimiento
-
-El backend ejecuta un cron a las **8:00 AM (Lun–Sáb, zona AR)** que envía un email cuando un expediente activo tiene `prox_fecha` en 3 o 7 días (configurable). No duplica alertas gracias a la tabla `AlertasEnviadas`.
-
-```bash
-# Probar manualmente sin esperar el cron
-cd backend && node -e "require('./services/alertas').verificarAlertas()"
 ```
-
-Variables en `.env`:
-
-```env
 SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
 SMTP_USER=tu@gmail.com
-SMTP_PASS=xxxx-xxxx-xxxx-xxxx  # App Password de Google
-EMAIL_DESTINATARIOS=socio@estudio.com,admin@estudio.com
-ALERTA_DIAS=3,7
-ALERTA_HORA=08:00
+SMTP_PASS=tu-app-password
+ALERT_TO=destinatario@gmail.com
+ALERT_DAYS=3,7
+ALERT_HOUR=08:00
 ```
 
-> Para Gmail: `Google Account → Security → 2-Step Verification → App Passwords`
+> Para Gmail usá una "App Password" (no la contraseña normal).
+> Configuración: Cuenta Google → Seguridad → Verificación en 2 pasos → Contraseñas de aplicación
 
 ---
 
-## API — Endpoints principales
+## Solución de problemas
 
-```
-POST   /api/auth/login
-GET    /api/auth/me
-GET    /api/auth/usuarios          (socio, admin)
-POST   /api/auth/usuarios          (admin)
-PUT    /api/auth/usuarios/:id      (admin)
+**"Error de conexión a SQL Server"**
+→ Ejecutar `CONFIGURAR_SQL.bat` como administrador
 
-GET    /api/expedientes            ?area= &estado= &id_abogado=
-POST   /api/expedientes
-PUT    /api/expedientes/:id
-GET    /api/expedientes/:id        incluye movimientos[]
-POST   /api/expedientes/:id/movimientos
-DELETE /api/expedientes/:id        (socio, admin)
+**"Token inválido" al iniciar sesión**
+→ Verificar que `JWT_SECRET` en `.env` no esté vacío
 
-GET    /api/clientes               ?tipo= &area=
-POST   /api/clientes               (socio, admin)
-PUT    /api/clientes/:id           (socio, admin)
-DELETE /api/clientes/:id           (socio, admin)
-GET    /api/clientes/:id           incluye expedientes[]
-
-GET    /api/abogados               incluye exp_activos
-POST   /api/abogados               (socio, admin)
-PUT    /api/abogados/:id           (socio, admin)
-
-GET    /api/exportar/expedientes/pdf    ?area= &estado=
-GET    /api/exportar/expedientes/excel  ?area= &estado=
-GET    /api/exportar/clientes/excel
-
-GET    /api/health
-```
-
----
-
-## Bugs corregidos en esta versión
-
-- `db.js`: race condition en el singleton del pool → resuelto con promise-based singleton
-- `routes/auth.js`: `req.params.id` sin `parseInt` en PUT → corregido
-- `routes/expedientes.js`: race condition en generación de número correlativo → resuelto con `UPDLOCK`
-- `routes/expedientes.js`: abogados podían ver/editar expedientes ajenos → restricción aplicada
-- `routes/clientes.js`: abogados podían crear clientes vía API → restricción de rol aplicada
-- `services/alertas.js`: `createTransporter` (no existe en nodemailer) → `createTransport`
-- `services/alertas.js`: SQL injection en `diasConfig.join(',')` → validación de enteros
-- `sql/01_schema.sql`: `AlertasEnviadas` sin `ON DELETE CASCADE` → FK error al borrar expedientes
-- `sql/01_schema.sql`: índices de rendimiento agregados
-- `frontend/api.js`: BASE hardcodeada ignoraba el proxy de Vite → URL relativa por defecto
-- `frontend/App.jsx`: token expirado no detectado al cargar → verificación de `exp` del JWT
-- `frontend/App.jsx`: `expDetail` quedaba stale tras editar → se refresca con GET /:id
-- `frontend/App.jsx`: export URLs generaban `area=&estado=` → `URLSearchParams` limpio
-- `routes/exportar.js`: argb en ExcelJS en minúsculas → UPPERCASE requerido
-- `routes/exportar.js`: columnas PDF no sumaban el ancho real → recalculado
+**Puerto 3001 o 5173 ocupado**
+→ Cambiar `PORT` en `backend/.env` o el puerto en `frontend/vite.config.js`

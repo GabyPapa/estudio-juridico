@@ -32,3 +32,6 @@ Thumbs.db
 
 # Coverage
 coverage/
+
+# Archivos subidos por usuarios
+backend/uploads/
