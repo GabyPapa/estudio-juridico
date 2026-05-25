@@ -830,14 +830,14 @@ function InvestigacionIA({ isAdmin }) {
               <div style={{textAlign:"left",marginBottom:16}}>
                 <div style={{fontSize:12,fontWeight:500,marginBottom:6,color:"var(--color-text-secondary)"}}>CÓMO OBTENER TU CLAVE (gratis)</div>
                 {[
-                  ["1","Entrá a","console.anthropic.com/settings/keys","console.anthropic.com"],
-                  ["2","Hacé click en","→ Create Key",""],
-                  ["3","Copiá la clave (empieza con","sk-ant-api03-...","sk-ant-api03-")],
-                  ["4","Pegala abajo y guardá","",""],
-                ].map(([n,pre,code,_],i)=>(
+                  {n:"1", text:"Entrá a ", code:"console.anthropic.com/settings/keys"},
+                  {n:"2", text:"Hacé click en ", code:"Create Key"},
+                  {n:"3", text:"Copiá la clave (empieza con ", code:"sk-ant-api03-..."},
+                  {n:"4", text:"Pegala abajo y hacé click en Guardar", code:""},
+                ].map((s,i)=>(
                   <div key={i} style={{display:"flex",gap:10,alignItems:"flex-start",marginBottom:8}}>
-                    <div style={{width:22,height:22,borderRadius:"50%",background:"var(--color-background-info)",color:"var(--color-text-info)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,flexShrink:0}}>{n}</div>
-                    <div style={{fontSize:13,paddingTop:2}}>{pre} {code&&<code style={{background:"var(--color-background-secondary)",padding:"1px 5px",borderRadius:4,fontSize:12}}>{code}</code>}</div>
+                    <div style={{width:22,height:22,borderRadius:"50%",background:"var(--color-background-info)",color:"var(--color-text-info)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,flexShrink:0}}>{s.n}</div>
+                    <div style={{fontSize:13,paddingTop:2}}>{s.text}{s.code&&<code style={{background:"var(--color-background-secondary)",padding:"1px 5px",borderRadius:4,fontSize:12}}>{s.code}</code>}</div>
                   </div>
                 ))}
               </div>
