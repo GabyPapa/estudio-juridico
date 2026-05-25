@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { api, descargar } from "./api";
 
 // ── Constantes ──────────────────────────────────────────────
@@ -16,6 +16,8 @@ const NAV = [
   { id:"expedientes",   label:"Expedientes",          icon:"ti-folder-open" },
   { id:"clientes",      label:"Clientes",             icon:"ti-users" },
   { id:"abogados",      label:"Abogados",             icon:"ti-user-circle" },
+  { id:"juzgados",      label:"Juzgados",             icon:"ti-building-courthouse" },
+  { id:"modelos",       label:"Modelos",              icon:"ti-file-text" },
 ];
 const ROL_LABEL = { socio:"Socio", abogado:"Abogado", administrador:"Administrador" };
 const inits = n => n.replace(/^Dr[a]?\.?\s+/i,"").split(" ").slice(0,2).map(w=>w[0]).join("").toUpperCase();
@@ -140,27 +142,95 @@ function ClienteForm({initial,onSave,onCancel,loading}) {
 }
 
 function AbogadoForm({initial,onSave,onCancel,loading}) {
-  const [d,setD] = useState(initial||{nombre:"",matricula:"",especialidad:"",email:"",tel:"",activo:true});
+  const [d,setD] = useState(initial||{
+    nombre:"",tipo:"interno",matricula:"",especialidad:"",email:"",tel:"",
+    dni:"",celular:"",domicilio:"",localidad:"",provincia:"Buenos Aires",cp:"",
+    fecha_nac:"",notas_internas:"",activo:true
+  });
   const set = (k,v) => setD(p=>({...p,[k]:v}));
+  const L = ({label}) => <label style={{fontSize:11,color:"var(--color-text-secondary)",display:"block",marginBottom:3}}>{label}</label>;
   return (
-    <div style={{display:"flex",flexDirection:"column",gap:10}}>
-      <div><label style={{fontSize:12,color:"var(--color-text-secondary)"}}>Nombre completo *</label><input value={d.nombre} onChange={e=>set("nombre",e.target.value)} style={{width:"100%",marginTop:4}}/></div>
+    <div style={{display:"flex",flexDirection:"column",gap:10,maxHeight:"70vh",overflowY:"auto",paddingRight:4}}>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-        <div><label style={{fontSize:12,color:"var(--color-text-secondary)"}}>Matrícula</label><input value={d.matricula||""} onChange={e=>set("matricula",e.target.value)} style={{width:"100%",marginTop:4}}/></div>
-        <div><label style={{fontSize:12,color:"var(--color-text-secondary)"}}>Estado</label>
-          <select value={d.activo?"activo":"inactivo"} onChange={e=>set("activo",e.target.value==="activo")} style={{width:"100%",marginTop:4}}>
+        <div style={{gridColumn:"1/-1"}}><L label="Nombre y apellido *"/><input value={d.nombre} onChange={e=>set("nombre",e.target.value)} style={{width:"100%"}}/></div>
+        <div><L label="Tipo"/>
+          <select value={d.tipo} onChange={e=>set("tipo",e.target.value)} style={{width:"100%"}}>
+            <option value="interno">Abogado del estudio</option>
+            <option value="externo">Abogado externo/contrario</option>
+          </select>
+        </div>
+        <div><L label="Estado"/>
+          <select value={d.activo?"activo":"inactivo"} onChange={e=>set("activo",e.target.value==="activo")} style={{width:"100%"}}>
             <option value="activo">Activo</option><option value="inactivo">Inactivo</option>
           </select>
         </div>
+        <div><L label="DNI"/><input value={d.dni||""} onChange={e=>set("dni",e.target.value)} style={{width:"100%"}}/></div>
+        <div><L label="Fecha de nacimiento"/><input type="date" value={d.fecha_nac||""} onChange={e=>set("fecha_nac",e.target.value)} style={{width:"100%"}}/></div>
+        <div><L label="Matrícula principal"/><input value={d.matricula||""} onChange={e=>set("matricula",e.target.value)} style={{width:"100%"}} placeholder="Ej: CPACF T.85 F.372"/></div>
+        <div><L label="Especialidad"/><input value={d.especialidad||""} onChange={e=>set("especialidad",e.target.value)} style={{width:"100%"}}/></div>
+        <div><L label="Email"/><input type="email" value={d.email||""} onChange={e=>set("email",e.target.value)} style={{width:"100%"}}/></div>
+        <div><L label="Teléfono fijo"/><input value={d.tel||""} onChange={e=>set("tel",e.target.value)} style={{width:"100%"}}/></div>
+        <div style={{gridColumn:"1/-1"}}><L label="Domicilio real"/><input value={d.domicilio||""} onChange={e=>set("domicilio",e.target.value)} style={{width:"100%"}}/></div>
+        <div><L label="Localidad"/><input value={d.localidad||""} onChange={e=>set("localidad",e.target.value)} style={{width:"100%"}}/></div>
+        <div><L label="Provincia"/><input value={d.provincia||""} onChange={e=>set("provincia",e.target.value)} style={{width:"100%"}}/></div>
+        <div><L label="Celular"/><input value={d.celular||""} onChange={e=>set("celular",e.target.value)} style={{width:"100%"}}/></div>
+        <div><L label="Código postal"/><input value={d.cp||""} onChange={e=>set("cp",e.target.value)} style={{width:"100%"}}/></div>
+        <div style={{gridColumn:"1/-1"}}><L label="Notas internas"/><textarea rows={2} value={d.notas_internas||""} onChange={e=>set("notas_internas",e.target.value)} style={{width:"100%",fontSize:12}}/></div>
       </div>
-      <div><label style={{fontSize:12,color:"var(--color-text-secondary)"}}>Especialidad</label><input value={d.especialidad||""} onChange={e=>set("especialidad",e.target.value)} style={{width:"100%",marginTop:4}}/></div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-        <div><label style={{fontSize:12,color:"var(--color-text-secondary)"}}>Email</label><input type="email" value={d.email||""} onChange={e=>set("email",e.target.value)} style={{width:"100%",marginTop:4}}/></div>
-        <div><label style={{fontSize:12,color:"var(--color-text-secondary)"}}>Teléfono</label><input value={d.tel||""} onChange={e=>set("tel",e.target.value)} style={{width:"100%",marginTop:4}}/></div>
-      </div>
-      <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:8}}>
+      <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:4}}>
         <button onClick={onCancel} disabled={loading}>Cancelar</button>
-        <button onClick={()=>onSave(d)} disabled={loading} style={{background:"var(--color-background-info)",color:"var(--color-text-info)",border:"0.5px solid var(--color-border-info)"}}>
+        <button onClick={()=>onSave(d)} disabled={loading||!d.nombre} style={{background:"var(--color-background-info)",color:"var(--color-text-info)",border:"0.5px solid var(--color-border-info)"}}>
+          {loading?<Spinner/>:"Guardar"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function JuzgadoForm({initial,onSave,onCancel,loading}) {
+  const [d,setD] = useState(initial||{
+    numero:"",nombre:"",fuero:"Comercial",jurisdiccion:"Nacional",camara:"",
+    nombre_juez:"",calle:"",numero_calle:"",piso:"",oficina:"",cp:"",
+    localidad:"CABA",provincia:"Buenos Aires",telefono:"",fax:"",email:"",
+    horario:"09:00–13:30",observaciones:""
+  });
+  const set = (k,v) => setD(p=>({...p,[k]:v}));
+  const L = ({label}) => <label style={{fontSize:11,color:"var(--color-text-secondary)",display:"block",marginBottom:3}}>{label}</label>;
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:10,maxHeight:"70vh",overflowY:"auto",paddingRight:4}}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+        <div><L label="Nº Juzgado"/><input type="number" value={d.numero||""} onChange={e=>set("numero",e.target.value)} style={{width:"100%"}}/></div>
+        <div><L label="Fuero"/>
+          <select value={d.fuero} onChange={e=>set("fuero",e.target.value)} style={{width:"100%"}}>
+            {["Comercial","Civil","Laboral","Penal","Federal","Civil y Comercial Federal","Contencioso Administrativo","Familia","Registral","Administrativo Laboral"].map(f=><option key={f}>{f}</option>)}
+          </select>
+        </div>
+        <div style={{gridColumn:"1/-1"}}><L label="Nombre completo *"/><input value={d.nombre} onChange={e=>set("nombre",e.target.value)} style={{width:"100%"}} placeholder="Juzgado Nacional de 1ª Instancia en lo Comercial Nº 1"/></div>
+        <div><L label="Jurisdicción"/>
+          <select value={d.jurisdiccion} onChange={e=>set("jurisdiccion",e.target.value)} style={{width:"100%"}}>
+            <option value="Nacional">Nacional</option>
+            <option value="Ciudad">Ciudad (CABA)</option>
+            <option value="Provincial">Provincial</option>
+            <option value="Federal">Federal</option>
+          </select>
+        </div>
+        <div><L label="Cámara de apelaciones"/><input value={d.camara||""} onChange={e=>set("camara",e.target.value)} style={{width:"100%"}}/></div>
+        <div style={{gridColumn:"1/-1"}}><L label="Nombre del Juez/a"/><input value={d.nombre_juez||""} onChange={e=>set("nombre_juez",e.target.value)} style={{width:"100%"}} placeholder="Dr./Dra. Apellido Nombre"/></div>
+        <div><L label="Calle"/><input value={d.calle||""} onChange={e=>set("calle",e.target.value)} style={{width:"100%"}}/></div>
+        <div><L label="Número"/><input value={d.numero_calle||""} onChange={e=>set("numero_calle",e.target.value)} style={{width:"100%"}}/></div>
+        <div><L label="Piso"/><input value={d.piso||""} onChange={e=>set("piso",e.target.value)} style={{width:"100%"}}/></div>
+        <div><L label="Oficina/Departamento"/><input value={d.oficina||""} onChange={e=>set("oficina",e.target.value)} style={{width:"100%"}}/></div>
+        <div><L label="Localidad"/><input value={d.localidad||""} onChange={e=>set("localidad",e.target.value)} style={{width:"100%"}}/></div>
+        <div><L label="Código Postal"/><input value={d.cp||""} onChange={e=>set("cp",e.target.value)} style={{width:"100%"}}/></div>
+        <div><L label="Teléfono"/><input value={d.telefono||""} onChange={e=>set("telefono",e.target.value)} style={{width:"100%"}}/></div>
+        <div><L label="Email"/><input type="email" value={d.email||""} onChange={e=>set("email",e.target.value)} style={{width:"100%"}}/></div>
+        <div><L label="Fax"/><input value={d.fax||""} onChange={e=>set("fax",e.target.value)} style={{width:"100%"}}/></div>
+        <div><L label="Horario"/><input value={d.horario||""} onChange={e=>set("horario",e.target.value)} style={{width:"100%"}}/></div>
+        <div style={{gridColumn:"1/-1"}}><L label="Observaciones"/><textarea rows={2} value={d.observaciones||""} onChange={e=>set("observaciones",e.target.value)} style={{width:"100%",fontSize:12}}/></div>
+      </div>
+      <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:4}}>
+        <button onClick={onCancel} disabled={loading}>Cancelar</button>
+        <button onClick={()=>onSave(d)} disabled={loading||!d.nombre} style={{background:"var(--color-background-info)",color:"var(--color-text-info)",border:"0.5px solid var(--color-border-info)"}}>
           {loading?<Spinner/>:"Guardar"}
         </button>
       </div>
@@ -299,6 +369,17 @@ export default function App() {
   const [mLoading,setMLoading] = useState(false);
   const [mErr,setMErr]       = useState("");
   const [exporting,setExporting] = useState(false);
+  const [juzgados,setJuzgados]   = useState([]);
+  const [modelos,setModelos]     = useState([]);
+  const [categorias,setCategorias] = useState([]);
+  const [colegios,setColegios]   = useState([]);
+  const [juzgFuero,setJuzgFuero] = useState("todos");
+  const [juzgQ,setJuzgQ]         = useState("");
+  const [modeloTipo,setModeloTipo] = useState("todos");
+  const [modeloCat,setModeloCat]   = useState("todas");
+  const [modeloSelec,setModeloSelec] = useState(null);
+  const [modeloVars,setModeloVars]   = useState({});
+  const [juzgDetail,setJuzgDetail]   = useState(null);
 
   const canEdit = user?.rol !== "abogado" || true; // abogados pueden editar sus propios
   const isAdmin = ["administrador","socio"].includes(user?.rol);
@@ -307,12 +388,17 @@ export default function App() {
     if (!user) return;
     setLoading(true);
     try {
-      const [ab,cl,ex] = await Promise.all([
+      const [ab,cl,ex,jz,md,cat,col] = await Promise.all([
         api.get("/api/abogados"),
         api.get("/api/clientes"),
         api.get("/api/expedientes"),
+        api.get("/api/juzgados"),
+        api.get("/api/modelos"),
+        api.get("/api/modelos/categorias"),
+        api.get("/api/colegios"),
       ]);
       setAbogados(ab); setClientes(cl); setExps(ex);
+      setJuzgados(jz); setModelos(md); setCategorias(cat); setColegios(col);
     } catch(e) { console.error(e); }
     setLoading(false);
   }, [user]);
@@ -334,6 +420,9 @@ export default function App() {
       } else if (modal.type === "abogado") {
         if (modal.mode === "new") await api.post("/api/abogados", data);
         else await api.put(`/api/abogados/${data.id}`, data);
+      } else if (modal.type === "juzgado") {
+        if (modal.mode === "new") await api.post("/api/juzgados", data);
+        else await api.put(`/api/juzgados/${data.id}`, data);
       }
       setModal(null);
       await loadData();
@@ -430,6 +519,7 @@ export default function App() {
             {modal.type==="expediente" && <ExpForm initial={modal.data} abogados={abogados} clientes={clientes} onSave={saveModal} onCancel={()=>setModal(null)} loading={mLoading}/>}
             {modal.type==="cliente"    && <ClienteForm initial={modal.data} onSave={saveModal} onCancel={()=>setModal(null)} loading={mLoading}/>}
             {modal.type==="abogado"    && <AbogadoForm initial={modal.data} onSave={saveModal} onCancel={()=>setModal(null)} loading={mLoading}/>}
+            {modal.type==="juzgado"    && <JuzgadoForm initial={modal.data} onSave={saveModal} onCancel={()=>setModal(null)} loading={mLoading}/>}
           </Modal>
         )}
 
@@ -734,40 +824,355 @@ export default function App() {
           {!loading && view==="abogados" && (
             <div>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"1.25rem"}}>
-                <h1 style={{margin:0,fontSize:20,fontWeight:500}}>Abogados del Estudio</h1>
+                <h1 style={{margin:0,fontSize:20,fontWeight:500}}>Abogados</h1>
                 {isAdmin && <button onClick={()=>setModal({type:"abogado",mode:"new",title:"Nuevo abogado",data:null})} style={{fontSize:13,display:"flex",alignItems:"center",gap:6,background:"var(--color-background-info)",color:"var(--color-text-info)",border:"0.5px solid var(--color-border-info)"}}>
                   <i className="ti ti-plus" aria-hidden="true"/> Nuevo
                 </button>}
               </div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-                {abogados.map(a=>(
-                  <div key={a.id} style={{background:"var(--color-background-primary)",border:`0.5px solid ${B}`,borderRadius:"var(--border-radius-lg)",padding:"1.25rem",opacity:a.activo?1:0.65}}>
-                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:12}}>
-                      <div style={{display:"flex",alignItems:"center",gap:10}}>
-                        <Avatar name={a.nombre} size={40} color={a.activo?"info":"secondary"}/>
-                        <div>
-                          <div style={{fontSize:14,fontWeight:500}}>{a.nombre}</div>
-                          <div style={{fontSize:12,color:"var(--color-text-secondary)"}}>{a.matricula}</div>
-                        </div>
-                      </div>
-                      {isAdmin && <button onClick={()=>setModal({type:"abogado",mode:"edit",title:"Editar abogado",data:a})} style={{padding:"4px 8px",fontSize:12}}><i className="ti ti-edit" aria-hidden="true"/></button>}
-                    </div>
-                    <div style={{borderTop:`0.5px solid ${B}`,paddingTop:10,display:"flex",flexDirection:"column",gap:6}}>
-                      <div style={{display:"flex",alignItems:"center",gap:8}}><i className="ti ti-books" style={{fontSize:14,color:"var(--color-text-secondary)",width:16}} aria-hidden="true"/><span style={{fontSize:12}}>{a.especialidad}</span></div>
-                      <div style={{display:"flex",alignItems:"center",gap:8}}><i className="ti ti-mail" style={{fontSize:14,color:"var(--color-text-secondary)",width:16}} aria-hidden="true"/><span style={{fontSize:12,color:"var(--color-text-secondary)"}}>{a.email}</span></div>
-                      <div style={{display:"flex",justifyContent:"space-between",marginTop:4}}>
-                        <div style={{display:"flex",alignItems:"center",gap:6}}><i className="ti ti-folder-open" style={{fontSize:13,color:"var(--color-text-secondary)"}} aria-hidden="true"/><span style={{fontSize:12,color:"var(--color-text-secondary)"}}>{a.exp_activos||0} activo(s)</span></div>
-                        <Badge v={a.activo?"activo":"cerrado"}/>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+
+              {/* Sector 1: Abogados del estudio */}
+              <div style={{marginBottom:"1.5rem"}}>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+                  <div style={{width:4,height:18,background:"var(--color-border-info)",borderRadius:2}}/>
+                  <h2 style={{margin:0,fontSize:15,fontWeight:500}}>Abogados del Estudio</h2>
+                  <span style={{fontSize:12,color:"var(--color-text-secondary)"}}>{abogados.filter(a=>a.tipo==="interno"||!a.tipo).length} profesional(es)</span>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+                  {abogados.filter(a=>a.tipo==="interno"||!a.tipo).map(a=>(
+                    <AbogadoCard key={a.id} a={a} colegios={colegios} isAdmin={isAdmin} onEdit={()=>setModal({type:"abogado",mode:"edit",title:"Editar abogado",data:a})} B={B}/>
+                  ))}
+                  {abogados.filter(a=>a.tipo==="interno"||!a.tipo).length===0&&(
+                    <div style={{fontSize:13,color:"var(--color-text-secondary)",gridColumn:"1/-1",padding:"1rem 0"}}>No hay abogados del estudio cargados.</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Sector 2: Abogados externos */}
+              <div>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+                  <div style={{width:4,height:18,background:"var(--color-border-warning)",borderRadius:2}}/>
+                  <h2 style={{margin:0,fontSize:15,fontWeight:500}}>Abogados Externos / Partes Contrarias</h2>
+                  <span style={{fontSize:12,color:"var(--color-text-secondary)"}}>{abogados.filter(a=>a.tipo==="externo").length} profesional(es)</span>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+                  {abogados.filter(a=>a.tipo==="externo").map(a=>(
+                    <AbogadoCard key={a.id} a={a} colegios={colegios} isAdmin={isAdmin} onEdit={()=>setModal({type:"abogado",mode:"edit",title:"Editar abogado",data:a})} B={B} externo/>
+                  ))}
+                  {abogados.filter(a=>a.tipo==="externo").length===0&&(
+                    <div style={{fontSize:13,color:"var(--color-text-secondary)",gridColumn:"1/-1",padding:"1rem 0"}}>No hay abogados externos registrados.</div>
+                  )}
+                </div>
               </div>
             </div>
           )}
 
+          {/* JUZGADOS */}
+          {!loading && view==="juzgados" && !juzgDetail && (
+            <div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"1.25rem"}}>
+                <h1 style={{margin:0,fontSize:20,fontWeight:500}}>Base de Juzgados</h1>
+                {isAdmin && <button onClick={()=>setModal({type:"juzgado",mode:"new",title:"Nuevo juzgado",data:null})} style={{fontSize:13,display:"flex",alignItems:"center",gap:6,background:"var(--color-background-info)",color:"var(--color-text-info)",border:"0.5px solid var(--color-border-info)"}}>
+                  <i className="ti ti-plus" aria-hidden="true"/> Nuevo
+                </button>}
+              </div>
+              <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
+                <select value={juzgFuero} onChange={e=>setJuzgFuero(e.target.value)} style={{fontSize:13}}>
+                  <option value="todos">Todos los fueros</option>
+                  {[...new Set(juzgados.map(j=>j.fuero))].sort().map(f=><option key={f}>{f}</option>)}
+                </select>
+                <input value={juzgQ} onChange={e=>setJuzgQ(e.target.value)} placeholder="Buscar por nombre, juez, calle..." style={{fontSize:13,flex:1,minWidth:200}}/>
+                <span style={{fontSize:13,color:"var(--color-text-secondary)",alignSelf:"center"}}>
+                  {juzgados.filter(j=>(juzgFuero==="todos"||j.fuero===juzgFuero)&&(!juzgQ||j.nombre.toLowerCase().includes(juzgQ.toLowerCase())||((j.nombre_juez||"").toLowerCase().includes(juzgQ.toLowerCase()))||(j.calle||"").toLowerCase().includes(juzgQ.toLowerCase()))).length} juzgado(s)
+                </span>
+              </div>
+              <div style={{background:"var(--color-background-primary)",border:`0.5px solid ${B}`,borderRadius:"var(--border-radius-lg)",overflow:"hidden"}}>
+                <table style={{width:"100%",borderCollapse:"collapse",fontSize:13,tableLayout:"fixed"}}>
+                  <thead>
+                    <tr style={{background:"var(--color-background-secondary)"}}>
+                      {["Nombre","Fuero","Juez/a","Domicilio","Teléfono",""].map((h,i)=>(
+                        <th key={i} style={{padding:"10px 12px",textAlign:"left",fontWeight:500,borderBottom:`0.5px solid ${B}`,width:["32%","12%","18%","22%","12%","4%"][i]}}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {juzgados
+                      .filter(j=>(juzgFuero==="todos"||j.fuero===juzgFuero)&&(!juzgQ||[j.nombre,j.nombre_juez||"",j.calle||""].join(" ").toLowerCase().includes(juzgQ.toLowerCase())))
+                      .map((j,i,arr)=>(
+                      <tr key={j.id} style={{borderBottom:i<arr.length-1?`0.5px solid ${B}`:"none"}}>
+                        <td style={{padding:"10px 12px",overflow:"hidden"}}>
+                          <div style={{fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontSize:13}}>{j.nombre}</div>
+                          {j.total_secretarias>0&&<div style={{fontSize:11,color:"var(--color-text-secondary)"}}>{j.total_secretarias} secretaría(s)</div>}
+                        </td>
+                        <td style={{padding:"10px 12px"}}><AreaBadge area={j.fuero}/></td>
+                        <td style={{padding:"10px 12px",fontSize:12,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{j.nombre_juez||"—"}</td>
+                        <td style={{padding:"10px 12px",fontSize:12,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{[j.calle,j.numero_calle,j.piso?"Piso "+j.piso:null].filter(Boolean).join(" ")||"—"}</td>
+                        <td style={{padding:"10px 12px",fontSize:12,color:"var(--color-text-secondary)"}}>{j.telefono||"—"}</td>
+                        <td style={{padding:"10px 6px",textAlign:"center"}}>
+                          <button onClick={()=>setJuzgDetail(j)} style={{padding:"4px 6px",fontSize:12}} title="Ver"><i className="ti ti-eye" aria-hidden="true"/></button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {!loading && view==="juzgados" && juzgDetail && (
+            <div>
+              <button onClick={()=>setJuzgDetail(null)} style={{marginBottom:"1rem",fontSize:13,display:"flex",alignItems:"center",gap:5}}>
+                <i className="ti ti-arrow-left" style={{fontSize:14}} aria-hidden="true"/> Volver
+              </button>
+              <div style={{background:"var(--color-background-primary)",border:`0.5px solid ${B}`,borderRadius:"var(--border-radius-lg)",padding:"1.5rem",borderLeft:`3px solid var(--color-border-info)`}}>
+                <div style={{display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:8,marginBottom:16}}>
+                  <div>
+                    <h2 style={{margin:"0 0 4px",fontSize:18,fontWeight:500}}>{juzgDetail.nombre}</h2>
+                    <div style={{display:"flex",gap:8}}><AreaBadge area={juzgDetail.fuero}/><span style={{fontSize:12,color:"var(--color-text-secondary)"}}>{juzgDetail.jurisdiccion}</span></div>
+                  </div>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,borderTop:`0.5px solid ${B}`,paddingTop:16}}>
+                  <div><div style={{fontSize:11,color:"var(--color-text-secondary)",marginBottom:4}}>Juez/a titular</div><div style={{fontSize:13,fontWeight:500}}>{juzgDetail.nombre_juez||"Vacante"}</div></div>
+                  <div><div style={{fontSize:11,color:"var(--color-text-secondary)",marginBottom:4}}>Cámara</div><div style={{fontSize:13}}>{juzgDetail.camara||"—"}</div></div>
+                  <div><div style={{fontSize:11,color:"var(--color-text-secondary)",marginBottom:4}}>Domicilio</div><div style={{fontSize:13}}>{[juzgDetail.calle,juzgDetail.numero_calle,juzgDetail.piso&&("Piso "+juzgDetail.piso),juzgDetail.cp,juzgDetail.localidad].filter(Boolean).join(", ")||"—"}</div></div>
+                  <div><div style={{fontSize:11,color:"var(--color-text-secondary)",marginBottom:4}}>Teléfono / Email</div><div style={{fontSize:13}}>{juzgDetail.telefono||"—"}{juzgDetail.email&&<><br/><span style={{color:"var(--color-text-secondary)"}}>{juzgDetail.email}</span></>}</div></div>
+                </div>
+                {juzgDetail.observaciones&&<div style={{marginTop:14,borderTop:`0.5px solid ${B}`,paddingTop:12}}>
+                  <div style={{fontSize:11,color:"var(--color-text-secondary)",marginBottom:4}}>Observaciones</div>
+                  <div style={{fontSize:13}}>{juzgDetail.observaciones}</div>
+                </div>}
+              </div>
+              {juzgDetail.secretarias?.length>0&&(
+                <div style={{marginTop:14}}>
+                  <h3 style={{fontSize:14,fontWeight:500,margin:"0 0 10px"}}>Secretarías</h3>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                    {juzgDetail.secretarias.map(s=>(
+                      <div key={s.id} style={{background:"var(--color-background-primary)",border:`0.5px solid ${B}`,borderRadius:"var(--border-radius-md)",padding:"0.875rem 1rem"}}>
+                        <div style={{fontWeight:500,fontSize:13,marginBottom:4}}>Secretaría {s.numero}</div>
+                        <div style={{fontSize:12}}>{s.nombre_secretario||"—"}</div>
+                        <div style={{fontSize:12,color:"var(--color-text-secondary)"}}>{[s.telefono,s.telefono_int&&("Int. "+s.telefono_int)].filter(Boolean).join(" · ")||"—"}</div>
+                        {s.email&&<div style={{fontSize:11,color:"var(--color-text-secondary)"}}>{s.email}</div>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* MODELOS */}
+          {!loading && view==="modelos" && !modeloSelec && (
+            <div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"1.25rem"}}>
+                <h1 style={{margin:0,fontSize:20,fontWeight:500}}>Modelos de Escritos y Contratos</h1>
+              </div>
+              <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
+                {["todos","escrito","contrato"].map(t=>(
+                  <button key={t} onClick={()=>{setModeloTipo(t);setModeloCat("todas");}} style={{fontSize:13,background:modeloTipo===t?"var(--color-background-info)":"var(--color-background-secondary)",color:modeloTipo===t?"var(--color-text-info)":"var(--color-text-secondary)",border:modeloTipo===t?"0.5px solid var(--color-border-info)":`0.5px solid ${B}`,borderRadius:20,padding:"4px 14px",cursor:"pointer",textTransform:"capitalize"}}>
+                    {t==="todos"?"Todos":t==="escrito"?"Escritos":"Contratos"}
+                  </button>
+                ))}
+                <select value={modeloCat} onChange={e=>setModeloCat(e.target.value)} style={{fontSize:13,marginLeft:8}}>
+                  <option value="todas">Todas las categorías</option>
+                  {categorias.filter(c=>modeloTipo==="todos"||c.tipo===modeloTipo).map(c=><option key={c.id} value={String(c.id)}>{c.nombre}</option>)}
+                </select>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+                {modelos
+                  .filter(m=>(modeloTipo==="todos"||m.categoria_tipo===modeloTipo)&&(modeloCat==="todas"||String(m.id_categoria)===modeloCat))
+                  .map(m=>{
+                    const tipo = m.categoria_tipo;
+                    const c = tipo==="escrito"?"info":"success";
+                    return (
+                      <div key={m.id} style={{background:"var(--color-background-primary)",border:`0.5px solid ${B}`,borderRadius:"var(--border-radius-lg)",padding:"1.25rem",cursor:"pointer"}}
+                        onClick={async()=>{
+                          try {
+                            const full = await api.get(`/api/modelos/${m.id}`);
+                            setModeloSelec(full);
+                            setModeloVars({});
+                          } catch(e){alert("Error al cargar modelo");}
+                        }}
+                        onMouseEnter={e=>e.currentTarget.style.borderColor=`var(--color-border-${c})`}
+                        onMouseLeave={e=>e.currentTarget.style.borderColor=B}>
+                        <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}>
+                          <div style={{width:36,height:36,borderRadius:"var(--border-radius-md)",background:`var(--color-background-${c})`,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                            <i className={`ti ${tipo==="escrito"?"ti-file-description":"ti-contract"}`} style={{fontSize:18,color:`var(--color-text-${c})`}} aria-hidden="true"/>
+                          </div>
+                          <div style={{display:"flex",gap:6,alignItems:"flex-start"}}>
+                            <span style={{background:`var(--color-background-${c})`,color:`var(--color-text-${c})`,fontSize:11,padding:"2px 8px",borderRadius:20}}>{tipo}</span>
+                            {m.area&&<AreaBadge area={m.area}/>}
+                          </div>
+                        </div>
+                        <div style={{fontSize:14,fontWeight:500,marginBottom:4}}>{m.nombre}</div>
+                        <div style={{fontSize:12,color:"var(--color-text-secondary)",lineHeight:1.4}}>{m.descripcion}</div>
+                        <div style={{fontSize:11,color:"var(--color-text-secondary)",marginTop:8}}>{m.categoria_nombre} · v{m.version}</div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
+
+          {!loading && view==="modelos" && modeloSelec && (
+            <ModeloViewer modelo={modeloSelec} vars={modeloVars} setVars={setModeloVars} onBack={()=>setModeloSelec(null)}/>
+          )}
+
         </div>
       </main>
+    </div>
+  );
+}
+
+// ── ModeloViewer — rellena variables y genera vista previa ─
+// ── AbogadoCard — muestra datos + matrículas por colegio ──
+function AbogadoCard({ a, isAdmin, onEdit, B, externo }) {
+  const [matriculas, setMatriculas] = useState(null);
+  const [expanded, setExpanded]     = useState(false);
+  const color = externo ? "warning" : "info";
+
+  const loadMatriculas = async () => {
+    if (matriculas !== null) { setExpanded(e=>!e); return; }
+    try {
+      const r = await api.get(`/api/matriculas/abogado/${a.id}`);
+      setMatriculas(r);
+      setExpanded(true);
+    } catch { setMatriculas([]); setExpanded(true); }
+  };
+
+  return (
+    <div style={{background:"var(--color-background-primary)",border:`0.5px solid ${B}`,borderRadius:"var(--border-radius-lg)",padding:"1.25rem",opacity:a.activo?1:0.65}}>
+      <div style={{display:"flex",justifyContent:"space-between",marginBottom:12}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <Avatar name={a.nombre} size={40} color={a.activo?color:"secondary"}/>
+          <div>
+            <div style={{fontSize:14,fontWeight:500}}>{a.nombre}</div>
+            <div style={{fontSize:12,color:"var(--color-text-secondary)"}}>{a.matricula||a.especialidad||"Sin matrícula principal"}</div>
+            {a.dni&&<div style={{fontSize:11,color:"var(--color-text-secondary)"}}>DNI: {a.dni}</div>}
+          </div>
+        </div>
+        <div style={{display:"flex",gap:6}}>
+          {isAdmin && <button onClick={onEdit} style={{padding:"4px 8px",fontSize:12}} title="Editar"><i className="ti ti-edit" aria-hidden="true"/></button>}
+        </div>
+      </div>
+      <div style={{borderTop:`0.5px solid ${B}`,paddingTop:10,display:"flex",flexDirection:"column",gap:5}}>
+        {a.especialidad&&<div style={{display:"flex",gap:8,alignItems:"center"}}><i className="ti ti-books" style={{fontSize:13,color:"var(--color-text-secondary)",width:16}} aria-hidden="true"/><span style={{fontSize:12}}>{a.especialidad}</span></div>}
+        {a.email&&<div style={{display:"flex",gap:8,alignItems:"center"}}><i className="ti ti-mail" style={{fontSize:13,color:"var(--color-text-secondary)",width:16}} aria-hidden="true"/><span style={{fontSize:12,color:"var(--color-text-secondary)"}}>{a.email}</span></div>}
+        {(a.tel||a.celular)&&<div style={{display:"flex",gap:8,alignItems:"center"}}><i className="ti ti-phone" style={{fontSize:13,color:"var(--color-text-secondary)",width:16}} aria-hidden="true"/><span style={{fontSize:12,color:"var(--color-text-secondary)"}}>{a.celular||a.tel}</span></div>}
+        {a.domicilio&&<div style={{display:"flex",gap:8,alignItems:"center"}}><i className="ti ti-map-pin" style={{fontSize:13,color:"var(--color-text-secondary)",width:16}} aria-hidden="true"/><span style={{fontSize:12,color:"var(--color-text-secondary)"}}>{a.domicilio}{a.localidad?", "+a.localidad:""}</span></div>}
+        <div style={{display:"flex",justifyContent:"space-between",marginTop:4,alignItems:"center"}}>
+          <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            <span style={{fontSize:12,color:"var(--color-text-secondary)"}}><i className="ti ti-folder-open" style={{fontSize:12}} aria-hidden="true"/> {a.exp_activos||0} exp.</span>
+            <button onClick={loadMatriculas} style={{fontSize:11,padding:"2px 8px",borderRadius:20,background:`var(--color-background-${color})`,color:`var(--color-text-${color})`,border:`0.5px solid var(--color-border-${color})`}}>
+              <i className="ti ti-certificate" style={{fontSize:11,marginRight:4}} aria-hidden="true"/>Matrículas
+            </button>
+          </div>
+          <Badge v={a.activo?"activo":"cerrado"}/>
+        </div>
+        {expanded && matriculas !== null && (
+          <div style={{marginTop:8,borderTop:`0.5px solid ${B}`,paddingTop:8}}>
+            {matriculas.length===0
+              ? <div style={{fontSize:12,color:"var(--color-text-secondary)"}}>Sin matrículas registradas.</div>
+              : matriculas.map(m=>(
+                <div key={m.id} style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:4,padding:"4px 0",borderBottom:`0.5px solid ${B}`}}>
+                  <div>
+                    <span style={{fontWeight:500}}>{m.colegio_sigla}</span>
+                    <span style={{color:"var(--color-text-secondary)",marginLeft:6}}>{m.colegio_nombre}</span>
+                  </div>
+                  <div style={{textAlign:"right"}}>
+                    {m.tomo&&<span>T.{m.tomo}</span>}{m.folio&&<span> F.{m.folio}</span>}
+                    <span style={{marginLeft:8,fontSize:11,background:m.estado==="activa"?"var(--color-background-success)":"var(--color-background-warning)",color:m.estado==="activa"?"var(--color-text-success)":"var(--color-text-warning)",padding:"1px 6px",borderRadius:10}}>{m.estado}</span>
+                  </div>
+                </div>
+              ))
+            }
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ModeloViewer({ modelo, vars, setVars, onBack }) {
+  const B = "var(--color-border-tertiary)";
+  const [tab, setTab] = useState("editor"); // editor | preview
+  const [copied, setCopied] = useState(false);
+
+  const renderContent = () => {
+    let text = modelo.contenido || "";
+    (modelo.variables || []).forEach(v => {
+      const val = vars[v.campo] || `[${v.label}]`;
+      text = text.replaceAll(`{{${v.campo}}}`, val);
+    });
+    return text;
+  };
+
+  const copyText = async () => {
+    try {
+      await navigator.clipboard.writeText(renderContent());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch { alert("No se pudo copiar. Seleccioná el texto manualmente."); }
+  };
+
+  const printDoc = () => {
+    const w = window.open("", "_blank");
+    w.document.write(`<html><head><title>${modelo.nombre}</title>
+    <style>body{font-family:Times New Roman,serif;font-size:12pt;line-height:1.8;margin:3cm 3cm 3cm 3.5cm;color:#000;white-space:pre-wrap}</style></head>
+    <body>${renderContent().replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</body></html>`);
+    w.document.close();
+    w.print();
+  };
+
+  return (
+    <div>
+      <button onClick={onBack} style={{marginBottom:"1rem",fontSize:13,display:"flex",alignItems:"center",gap:5}}>
+        <i className="ti ti-arrow-left" style={{fontSize:14}} aria-hidden="true"/> Volver a modelos
+      </button>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"1rem",flexWrap:"wrap",gap:8}}>
+        <div>
+          <h1 style={{margin:"0 0 4px",fontSize:18,fontWeight:500}}>{modelo.nombre}</h1>
+          <div style={{display:"flex",gap:8}}>
+            <span style={{fontSize:12,color:"var(--color-text-secondary)"}}>{modelo.categoria_nombre}</span>
+            {modelo.area&&<AreaBadge area={modelo.area}/>}
+          </div>
+        </div>
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={copyText} style={{fontSize:13,display:"flex",alignItems:"center",gap:5}}>
+            <i className={`ti ${copied?"ti-check":"ti-copy"}`} aria-hidden="true"/>
+            {copied?"¡Copiado!":"Copiar texto"}
+          </button>
+          <button onClick={printDoc} style={{fontSize:13,display:"flex",alignItems:"center",gap:5,background:"var(--color-background-info)",color:"var(--color-text-info)",border:"0.5px solid var(--color-border-info)"}}>
+            <i className="ti ti-printer" aria-hidden="true"/> Imprimir / PDF
+          </button>
+        </div>
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"340px 1fr",gap:14,alignItems:"flex-start"}}>
+        {/* Panel de variables */}
+        {modelo.variables?.length > 0 && (
+          <div style={{background:"var(--color-background-primary)",border:`0.5px solid ${B}`,borderRadius:"var(--border-radius-lg)",padding:"1rem"}}>
+            <h3 style={{margin:"0 0 12px",fontSize:14,fontWeight:500}}>Completar datos</h3>
+            <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              {modelo.variables.map(v => (
+                <div key={v.campo}>
+                  <label style={{fontSize:11,color:"var(--color-text-secondary)",display:"block",marginBottom:3}}>{v.label}</label>
+                  {v.tipo==="textarea"
+                    ? <textarea value={vars[v.campo]||""} onChange={e=>setVars(p=>({...p,[v.campo]:e.target.value}))} rows={3} style={{width:"100%",fontSize:12}}/>
+                    : <input type={v.tipo||"text"} value={vars[v.campo]||""} onChange={e=>setVars(p=>({...p,[v.campo]:e.target.value}))} style={{width:"100%",fontSize:12}}/>
+                  }
+                </div>
+              ))}
+              <button onClick={()=>setVars({})} style={{fontSize:12,marginTop:4,color:"var(--color-text-secondary)"}}>
+                Limpiar datos
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Vista del documento */}
+        <div style={{background:"var(--color-background-primary)",border:`0.5px solid ${B}`,borderRadius:"var(--border-radius-lg)",padding:"2rem",fontFamily:"'Times New Roman',Georgia,serif",fontSize:13,lineHeight:1.8,whiteSpace:"pre-wrap",minHeight:400,color:"var(--color-text-primary)"}}>
+          {renderContent()}
+        </div>
+      </div>
     </div>
   );
 }
