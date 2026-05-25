@@ -1,18 +1,20 @@
 require('dotenv').config();
 const express = require('express');
 const cors    = require('cors');
+const path    = require('path');
 
-const authRouter          = require('./routes/auth');
-const expRouter           = require('./routes/expedientes');
-const cliRouter           = require('./routes/clientes');
-const abRouter            = require('./routes/abogados');
-const exportRouter        = require('./routes/exportar');
-const juzgRouter          = require('./routes/juzgados');
-const contraprtesRouter   = require('./routes/contrapartes');
-const areasRouter         = require('./routes/areas');
-const doctrinaRouter      = require('./routes/doctrina');
-const jurisprudenciaRouter= require('./routes/jurisprudencia');
-const leyesRouter         = require('./routes/leyes');
+const authRouter           = require('./routes/auth');
+const expRouter            = require('./routes/expedientes');
+const cliRouter            = require('./routes/clientes');
+const abRouter             = require('./routes/abogados');
+const exportRouter         = require('./routes/exportar');
+const juzgRouter           = require('./routes/juzgados');
+const contraprtesRouter    = require('./routes/contrapartes');
+const areasRouter          = require('./routes/areas');
+const doctrinaRouter       = require('./routes/doctrina');
+const jurisprudenciaRouter = require('./routes/jurisprudencia');
+const leyesRouter          = require('./routes/leyes');
+const escritosRouter       = require('./routes/escritos');
 const { routerModelos, routerColegios, routerMatriculas } = require('./routes/modelos');
 const { iniciarAlertas } = require('./services/alertas');
 const { getPool } = require('./db');
@@ -38,6 +40,7 @@ app.use('/api/areas',          areasRouter);
 app.use('/api/doctrina',       doctrinaRouter);
 app.use('/api/jurisprudencia', jurisprudenciaRouter);
 app.use('/api/leyes',          leyesRouter);
+app.use('/api/escritos',       escritosRouter);
 app.use('/api/modelos',        routerModelos);
 app.use('/api/colegios',       routerColegios);
 app.use('/api/matriculas',     routerMatriculas);
@@ -52,13 +55,9 @@ app.use((err, _req, res, _next) => { console.error('[error global]', err); res.s
 
 app.listen(PORT, () => {
   console.log(`\nServidor en http://localhost:${PORT}`);
-  console.log('  Rutas: auth | expedientes | clientes | abogados | contrapartes');
-  console.log('         areas | doctrina | jurisprudencia | leyes');
-  console.log('         juzgados | modelos | colegios | matriculas | exportar | health\n');
+  console.log('  + /api/escritos  (upload PDF/DOCX/TXT)\n');
 });
 
 getPool()
   .then(() => iniciarAlertas())
-  .catch(() => {
-    console.warn('[server] Sin DB al arrancar. Se reintentara en cada request.\n');
-  });
+  .catch(() => { console.warn('[server] Sin DB al arrancar.\n'); });

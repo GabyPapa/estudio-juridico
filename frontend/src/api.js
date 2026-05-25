@@ -60,3 +60,33 @@ export async function descargar(path, filename) {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+
+/**
+ * Descarga un recurso con auth y devuelve una blob URL (para iframes/visualizadores).
+ * Llamar URL.revokeObjectURL(url) cuando ya no se necesite.
+ */
+export async function fetchBlobUrl(path) {
+  const token = localStorage.getItem('token');
+  const res   = await fetch(`${BASE}${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
+}
+
+/**
+ * Sube un archivo con FormData (multipart/form-data).
+ */
+export async function uploadFile(path, formData) {
+  const token = localStorage.getItem('token');
+  const res   = await fetch(`${BASE}${path}`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+  if (res.status === 401) { localStorage.removeItem('token'); window.location.reload(); return; }
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
