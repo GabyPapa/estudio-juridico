@@ -47,7 +47,11 @@ app.use('/api/escritos',       escritosRouter);
 app.use('/api/investigacion',  investigacionRouter);
 app.use('/api/config',         configRouter);
 app.use('/api/expedientes/:id/historia', historiaRouter);
-app.use('/api/historia/tipos',            require('./routes/historia'));
+app.get('/api/historia/tipos', require('./middleware/auth').authMiddleware, async (_req, res) => {
+  const { query } = require('./db');
+  try { const r = await query('SELECT * FROM TiposMovimiento WHERE activo=1 ORDER BY orden, nombre'); res.json(r.recordset); }
+  catch { res.json([]); }
+});
 app.use('/api/modelos',        routerModelos);
 app.use('/api/colegios',       routerColegios);
 app.use('/api/matriculas',     routerMatriculas);

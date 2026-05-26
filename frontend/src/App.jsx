@@ -1400,6 +1400,7 @@ export default function App() {
   const [modeloCat,setModeloCat]=useState("todas");
   const [modeloSelec,setModeloSelec]=useState(null);
   const [modeloVars,setModeloVars]=useState({});
+  const [verHistoria,setVerHistoria]=useState(false);
   const [clienteTipo,setClienteTipo]=useState("todos");
   const [searchQ,setSearchQ]=useState("");
   const [searchType,setSearchType]=useState("jurisprudencia");
@@ -1673,7 +1674,7 @@ export default function App() {
                 <TD style={{fontSize:12,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{e.abogado_nombre?.replace(/^Dr[a]?\.?\s+/i,"")||"—"}</TD>
                 <TD style={{fontSize:12,color:e.prox_fecha?"var(--color-text-warning)":"var(--color-text-secondary)"}}>{e.prox_fecha?.slice(0,10)||"—"}</TD>
                 <TD><div style={{display:"flex",gap:3,justifyContent:"center"}}>
-                  <button onClick={()=>setDetail(e)} style={{padding:"3px 6px",fontSize:11}} title="Ver"><i className="ti ti-eye"/></button>
+                  <button onClick={()=>{setDetail(e);setVerHistoria(false);}} style={{padding:"3px 6px",fontSize:11}} title="Ver"><i className="ti ti-eye"/></button>
                   {canEdit&&<button onClick={()=>openModal("expediente","edit","Editar Expediente",e)} style={{padding:"3px 6px",fontSize:11}} title="Editar"><i className="ti ti-edit"/></button>}
                 </div></TD>
               </tr>)}</tbody>
@@ -1683,7 +1684,7 @@ export default function App() {
         {!loading&&view==="expedientes"&&detail&&!verHistoria&&(
           <div>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:"1.25rem"}}>
-              {btnBack()}
+              <button onClick={()=>{setDetail(null);setVerHistoria(false);}} style={{fontSize:13,display:"flex",alignItems:"center",gap:5,marginBottom:0}}><i className="ti ti-arrow-left" style={{fontSize:14}}/> Volver</button>
               <div style={{display:"flex",gap:8}}>
                 <button onClick={()=>setVerHistoria(true)} style={{fontSize:13,display:"flex",alignItems:"center",gap:5,background:"var(--color-background-success)",color:"var(--color-text-success)",border:"0.5px solid var(--color-border-success)"}}>
                   <i className="ti ti-timeline"/> Ver historia
