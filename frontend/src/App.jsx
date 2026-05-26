@@ -298,6 +298,335 @@ function AbogadoForm({initial,onSave,onCancel,loading}) {
 }
 
 
+// ══════════════════════════════════════════════════════════════
+// HistoriaExpediente — línea de tiempo estilo Lex Doctor
+// ══════════════════════════════════════════════════════════════
+function HistoriaExpediente({ expediente, abogados, onClose, B }) {
+  const [movimientos, setMovimientos] = useState([]);
+  const [tipos,       setTipos]       = useState([]);
+  const [loading,     setLoading]     = useState(true);
+  const [showForm,    setShowForm]    = useState(false);
+  const [editando,    setEditando]    = useState(null);
+  const [filtroTipo,  setFiltroTipo]  = useState("");
+  const [soloPendientes, setSoloPendientes] = useState(false);
+  const [busq,        setBusq]        = useState("");
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const [mv, tp] = await Promise.all([
+        api.get(`/api/expedientes/${expediente.id}/historia`),
+        api.get('/api/historia/tipos'),
+      ]);
+      setMovimientos(mv);
+      setTipos(tp);
+    } catch(e) { console.error(e); }
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, [expediente.id]);
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('¿Eliminar este movimiento?')) return;
+    try { await api.delete(`/api/expedientes/${expediente.id}/historia/${id}`); await load(); }
+    catch(e) { alert(e.message); }
+  };
+
+  // Agrupar por año-mes para la línea de tiempo
+  const filtrados = movimientos.filter(m =>
+    (!filtroTipo || String(m.id_tipo) === filtroTipo) &&
+    (!soloPendientes || m.prox_fecha) &&
+    (!busq || (m.descripcion + (m.tipo_nombre||'')).toLowerCase().includes(busq.toLowerCase()))
+  );
+
+  const grupos = filtrados.reduce((acc, m) => {
+    const key = m.fecha?.slice(0,7) || 'Sin fecha';
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(m);
+    return acc;
+  }, {});
+
+  const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const fmtMes = key => {
+    if (key === 'Sin fecha') return 'Sin fecha';
+    const [y, m] = key.split('-');
+    return `${meses[parseInt(m)-1]} ${y}`;
+  };
+
+  const COLOR_MAP = { info:'info', success:'success', warning:'warning', danger:'danger', secondary:'secondary' };
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',height:'100%'}}>
+      {/* Header del panel */}
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'1rem 1.5rem',borderBottom:`0.5px solid ${B}`,background:'var(--color-background-secondary)',flexShrink:0}}>
+        <div>
+          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:2}}>
+            <button onClick={onClose} style={{border:'none',background:'none',cursor:'pointer',padding:4,color:'var(--color-text-secondary)',fontSize:16,display:'flex',alignItems:'center'}}>
+              <i className="ti ti-arrow-left"/>
+            </button>
+            <h2 style={{margin:0,fontSize:15,fontWeight:500}}>Historia del Expediente</h2>
+          </div>
+          <div style={{fontSize:12,color:'var(--color-text-secondary)',paddingLeft:28,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:500}}>
+            {expediente.numero} · {expediente.caratula}
+          </div>
+        </div>
+        <button onClick={()=>{setEditando(null);setShowForm(true);}} style={{fontSize:13,display:'flex',alignItems:'center',gap:6,background:'var(--color-background-info)',color:'var(--color-text-info)',border:'0.5px solid var(--color-border-info)'}}>
+          <i className="ti ti-plus"/> Nuevo movimiento
+        </button>
+      </div>
+
+      {/* Filtros */}
+      <div style={{display:'flex',gap:8,padding:'0.75rem 1.5rem',borderBottom:`0.5px solid ${B}`,flexShrink:0,flexWrap:'wrap',background:'var(--color-background-primary)'}}>
+        <select value={filtroTipo} onChange={e=>setFiltroTipo(e.target.value)} style={{fontSize:12,padding:'5px 8px'}}>
+          <option value="">Todos los tipos</option>
+          {tipos.map(t=><option key={t.id} value={String(t.id)}>{t.nombre}</option>)}
+        </select>
+        <input value={busq} onChange={e=>setBusq(e.target.value)} placeholder="Buscar en la historia..." style={{fontSize:12,flex:1,minWidth:180}}/>
+        <label style={{display:'flex',alignItems:'center',gap:6,fontSize:12,cursor:'pointer',padding:'4px 8px',border:`0.5px solid ${B}`,borderRadius:'var(--border-radius-md)',background:soloPendientes?'var(--color-background-warning)':'none',color:soloPendientes?'var(--color-text-warning)':'var(--color-text-secondary)'}}>
+          <input type="checkbox" checked={soloPendientes} onChange={e=>setSoloPendientes(e.target.checked)} style={{display:'none'}}/>
+          <i className="ti ti-clock" style={{fontSize:13}}/> Con pendiente
+        </label>
+        <span style={{fontSize:12,color:'var(--color-text-secondary)',alignSelf:'center'}}>{filtrados.length} movimiento(s)</span>
+      </div>
+
+      {/* Modal nuevo/editar movimiento */}
+      {showForm&&(
+        <div style={{position:'fixed',inset:0,zIndex:60,background:'rgba(0,0,0,0.45)',display:'flex',alignItems:'flex-start',justifyContent:'center',paddingTop:40,overflowY:'auto'}}>
+          <div style={{background:'var(--color-background-primary)',borderRadius:'var(--border-radius-lg)',border:`0.5px solid ${B}`,padding:'1.5rem',width:620,maxWidth:'95%',margin:'0 auto 40px'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1.25rem'}}>
+              <h3 style={{margin:0,fontSize:15,fontWeight:500}}>{editando?'Editar movimiento':'Nuevo movimiento'}</h3>
+              <button onClick={()=>{setShowForm(false);setEditando(null);}} style={{border:'none',background:'none',cursor:'pointer',fontSize:18}}><i className="ti ti-x"/></button>
+            </div>
+            <MovimientoForm
+              initial={editando}
+              tipos={tipos}
+              abogados={abogados}
+              expedienteId={expediente.id}
+              onSave={async()=>{setShowForm(false);setEditando(null);await load();}}
+              onCancel={()=>{setShowForm(false);setEditando(null);}}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Línea de tiempo */}
+      <div style={{flex:1,overflowY:'auto',padding:'1.25rem 1.5rem'}}>
+        {loading&&<div style={{textAlign:'center',padding:'2rem',color:'var(--color-text-secondary)'}}><i className="ti ti-loader-2 ti-spin"/> Cargando historia...</div>}
+
+        {!loading&&filtrados.length===0&&(
+          <div style={{textAlign:'center',padding:'3rem',color:'var(--color-text-secondary)'}}>
+            <i className="ti ti-timeline" style={{fontSize:44,display:'block',marginBottom:14,opacity:0.4}}/>
+            <p style={{margin:'0 0 6px',fontSize:15,fontWeight:500}}>Sin movimientos registrados</p>
+            <p style={{margin:'0 0 14px',fontSize:13}}>Registrá el primer movimiento para comenzar la historia del expediente.</p>
+            <button onClick={()=>setShowForm(true)} style={{fontSize:13,background:'var(--color-background-info)',color:'var(--color-text-info)',border:'0.5px solid var(--color-border-info)',display:'inline-flex',alignItems:'center',gap:6}}>
+              <i className="ti ti-plus"/> Agregar primer movimiento
+            </button>
+          </div>
+        )}
+
+        {!loading&&Object.entries(grupos).map(([key, mvs])=>(
+          <div key={key} style={{marginBottom:'1.5rem'}}>
+            {/* Separador de mes */}
+            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
+              <div style={{fontSize:11,fontWeight:600,color:'var(--color-text-secondary)',textTransform:'uppercase',letterSpacing:'0.08em',whiteSpace:'nowrap'}}>{fmtMes(key)}</div>
+              <div style={{flex:1,height:'0.5px',background:B}}/>
+              <div style={{fontSize:11,color:'var(--color-text-secondary)'}}>{mvs.length}</div>
+            </div>
+
+            {/* Movimientos del mes */}
+            <div style={{position:'relative',paddingLeft:20}}>
+              {/* Línea vertical */}
+              <div style={{position:'absolute',left:6,top:0,bottom:0,width:'1.5px',background:B}}/>
+
+              {mvs.map((m,idx)=>{
+                const col = COLOR_MAP[m.tipo_color] || 'secondary';
+                return (
+                  <div key={m.id} style={{position:'relative',marginBottom:idx<mvs.length-1?12:0}}>
+                    {/* Dot */}
+                    <div style={{position:'absolute',left:-17,top:14,width:11,height:11,borderRadius:'50%',background:`var(--color-background-${col})`,border:`2px solid var(--color-border-${col})`,zIndex:1}}/>
+                    {/* Card */}
+                    <div style={{background:'var(--color-background-primary)',border:`0.5px solid ${m.importante?`var(--color-border-warning)`:B}`,borderRadius:'var(--border-radius-lg)',overflow:'hidden',transition:'border-color .15s'}}
+                      onMouseEnter={e=>!m.importante&&(e.currentTarget.style.borderColor=`var(--color-border-${col})`)}
+                      onMouseLeave={e=>!m.importante&&(e.currentTarget.style.borderColor=B)}>
+                      {m.importante&&<div style={{height:3,background:'var(--color-border-warning)'}}/>}
+                      <div style={{padding:'0.75rem 1rem'}}>
+                        {/* Fila superior: tipo + fecha + acciones */}
+                        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8,marginBottom:6}}>
+                          <div style={{display:'flex',alignItems:'center',gap:7}}>
+                            <div style={{width:26,height:26,borderRadius:6,background:`var(--color-background-${col})`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                              <i className={`ti ${m.tipo_icono||'ti-file'}`} style={{fontSize:13,color:`var(--color-text-${col})`}}/>
+                            </div>
+                            <span style={{fontSize:12,fontWeight:600,color:`var(--color-text-${col})`}}>{m.tipo_nombre}</span>
+                            {m.importante&&<span style={{fontSize:10,background:'var(--color-background-warning)',color:'var(--color-text-warning)',padding:'1px 6px',borderRadius:8,fontWeight:500}}>⭐ Hito</span>}
+                          </div>
+                          <div style={{display:'flex',gap:8,alignItems:'center',flexShrink:0}}>
+                            <span style={{fontSize:11,color:'var(--color-text-secondary)',fontFamily:'var(--font-mono)'}}>{m.fecha?.slice(0,10)}{m.hora?` ${m.hora?.slice(0,5)}`:''}</span>
+                            <button onClick={()=>{setEditando(m);setShowForm(true);}} style={{padding:'3px 6px',fontSize:11}} title="Editar"><i className="ti ti-edit"/></button>
+                            <button onClick={()=>handleDelete(m.id)} style={{padding:'3px 6px',fontSize:11,color:'var(--color-text-danger)'}} title="Eliminar"><i className="ti ti-trash"/></button>
+                          </div>
+                        </div>
+                        {/* Descripción */}
+                        <div style={{fontSize:13,lineHeight:1.6,marginBottom:m.fojas||m.abogado_nombre||m.prox_paso||m.adjunto_nombre?8:0}}>
+                          {m.descripcion}
+                        </div>
+                        {/* Meta: fojas, abogado, adjunto */}
+                        {(m.fojas||m.abogado_nombre||m.adjunto_nombre)&&(
+                          <div style={{display:'flex',gap:12,flexWrap:'wrap',marginBottom:m.prox_paso||m.prox_fecha?8:0}}>
+                            {m.fojas&&<span style={{fontSize:11,color:'var(--color-text-secondary)'}}><i className="ti ti-files" style={{fontSize:10,marginRight:3}}/>Fs. {m.fojas}</span>}
+                            {m.abogado_nombre&&<span style={{fontSize:11,color:'var(--color-text-secondary)'}}><i className="ti ti-user" style={{fontSize:10,marginRight:3}}/>{m.abogado_nombre.replace(/^Dr[a]?\.?\s+/i,'')}</span>}
+                            {m.adjunto_nombre&&(
+                              <a href="#" onClick={async e=>{e.preventDefault();const url=await fetchBlobUrl(`/api/expedientes/${expediente.id}/historia/${m.id}/adjunto`);const a=document.createElement('a');a.href=url;a.download=m.adjunto_nombre;a.click();URL.revokeObjectURL(url);}}
+                                style={{fontSize:11,color:'var(--color-text-info)',display:'inline-flex',alignItems:'center',gap:3}}>
+                                <i className="ti ti-paperclip" style={{fontSize:10}}/>{m.adjunto_nombre}
+                              </a>
+                            )}
+                          </div>
+                        )}
+                        {/* Próximo paso */}
+                        {(m.prox_paso||m.prox_fecha)&&(
+                          <div style={{background:'var(--color-background-warning)',borderRadius:6,padding:'6px 10px',display:'flex',gap:8,alignItems:'flex-start'}}>
+                            <i className="ti ti-arrow-right" style={{fontSize:13,color:'var(--color-text-warning)',marginTop:1,flexShrink:0}}/>
+                            <div>
+                              {m.prox_paso&&<div style={{fontSize:12,color:'var(--color-text-warning)',fontWeight:500}}>{m.prox_paso}</div>}
+                              {m.prox_fecha&&<div style={{fontSize:11,color:'var(--color-text-warning)',marginTop:1}}>Vence: {m.prox_fecha?.slice(0,10)}</div>}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Formulario de movimiento
+function MovimientoForm({ initial, tipos, abogados, expedienteId, onSave, onCancel }) {
+  const [d, setD] = useState(initial || {
+    fecha: new Date().toISOString().slice(0,10),
+    hora: '', id_tipo: '', descripcion: '',
+    fojas: '', id_abogado: '', prox_paso: '', prox_fecha: '', importante: false,
+  });
+  const [archivo, setArchivo] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [err,     setErr]     = useState('');
+  const set = (k,v) => setD(p=>({...p,[k]:v}));
+
+  // Agrupar tipos por categoría
+  const GRUPOS_TIPO = [
+    { label:'📝 Escritos propios',       ids:[1,2,3,4,5,6,7,8]       },
+    { label:'📬 Comunicaciones',         ids:[9,10,11,12,13,14]       },
+    { label:'⚖️ Resoluciones judiciales', ids:[15,16,17,18,19,20]      },
+    { label:'🔍 Audiencias y prueba',    ids:[21,22,23,24,25,26,27,28]},
+    { label:'🔒 Cautelares',             ids:[29,30,31,32]             },
+    { label:'📋 Gestión interna',        ids:[33,34,35,36,37,38,39]   },
+  ];
+
+  const doSave = async () => {
+    if (!d.id_tipo)          return setErr('Seleccioná el tipo de movimiento');
+    if (!d.descripcion.trim()) return setErr('La descripción es obligatoria');
+    setLoading(true); setErr('');
+    try {
+      const fd = new FormData();
+      Object.entries(d).forEach(([k,v]) => { if(v!==''&&v!==null&&v!==undefined) fd.append(k, String(v)); });
+      if (archivo) fd.append('adjunto', archivo);
+
+      if (initial?.id) {
+        // Editar — sin adjunto (simplificado)
+        await api.put(`/api/expedientes/${expedienteId}/historia/${initial.id}`, d);
+      } else {
+        await uploadFile(`/api/expedientes/${expedienteId}/historia`, fd);
+      }
+      await onSave();
+    } catch(e) { setErr(e.message||'Error al guardar'); }
+    setLoading(false);
+  };
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',gap:10,maxHeight:'72vh',overflowY:'auto',paddingRight:4}}>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+        <Campo label="Fecha *">
+          <input type="date" value={d.fecha} onChange={e=>set('fecha',e.target.value)} style={{width:'100%',marginTop:4}}/>
+        </Campo>
+        <Campo label="Hora">
+          <input type="time" value={d.hora} onChange={e=>set('hora',e.target.value)} style={{width:'100%',marginTop:4}}/>
+        </Campo>
+      </div>
+
+      <Campo label="Tipo de movimiento *">
+        <select value={d.id_tipo} onChange={e=>set('id_tipo',e.target.value)} style={{width:'100%',marginTop:4}}>
+          <option value="">— Seleccioná el tipo —</option>
+          {tipos.map(t=><option key={t.id} value={t.id}>{t.nombre}</option>)}
+        </select>
+      </Campo>
+
+      <Campo label="Descripción *">
+        <textarea
+          value={d.descripcion} onChange={e=>set('descripcion',e.target.value)}
+          rows={4} style={{width:'100%',marginTop:4}}
+          placeholder="Describí el movimiento con el mayor detalle posible..."
+        />
+      </Campo>
+
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+        <Campo label="Fojas del expediente">
+          <input value={d.fojas||''} onChange={e=>set('fojas',e.target.value)} placeholder="Ej: 45" style={{width:'100%',marginTop:4}}/>
+        </Campo>
+        <Campo label="Abogado responsable">
+          <select value={d.id_abogado||''} onChange={e=>set('id_abogado',e.target.value)} style={{width:'100%',marginTop:4}}>
+            <option value="">— Sin asignar —</option>
+            {abogados.filter(a=>a.activo).map(a=><option key={a.id} value={a.id}>{a.nombre.replace(/^Dr[a]?\.?\s+/i,'')}</option>)}
+          </select>
+        </Campo>
+      </div>
+
+      <div style={{borderTop:`0.5px solid ${B}`,paddingTop:10}}>
+        <div style={{fontSize:12,fontWeight:500,marginBottom:8,color:'var(--color-text-secondary)',display:'flex',alignItems:'center',gap:5}}>
+          <i className="ti ti-arrow-right" style={{fontSize:13,color:'var(--color-text-warning)'}}/>
+          Próximo paso (opcional)
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+          <Campo label="Descripción del próximo paso">
+            <input value={d.prox_paso||''} onChange={e=>set('prox_paso',e.target.value)} placeholder="Ej: Contestar traslado" style={{width:'100%',marginTop:4}}/>
+          </Campo>
+          <Campo label="Fecha límite / vencimiento">
+            <input type="date" value={d.prox_fecha||''} onChange={e=>set('prox_fecha',e.target.value)} style={{width:'100%',marginTop:4}}/>
+          </Campo>
+        </div>
+      </div>
+
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 10px',background:'var(--color-background-secondary)',borderRadius:8,border:`0.5px solid ${B}`}}>
+        <label style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer',fontSize:13}}>
+          <input type="checkbox" checked={!!d.importante} onChange={e=>set('importante',e.target.checked)} style={{width:15,height:15}}/>
+          <span>⭐ Marcar como hito importante</span>
+        </label>
+      </div>
+
+      {!initial&&(
+        <Campo label="Adjunto (opcional — PDF, DOCX, TXT, imagen)">
+          <input type="file" accept=".pdf,.docx,.doc,.txt,.jpg,.jpeg,.png" onChange={e=>setArchivo(e.target.files[0])} style={{width:'100%',marginTop:4,fontSize:12}}/>
+          {archivo&&<div style={{fontSize:11,color:'var(--color-text-secondary)',marginTop:3}}>{archivo.name} ({(archivo.size/1024).toFixed(0)} KB)</div>}
+        </Campo>
+      )}
+
+      {err&&<div style={{color:'var(--color-text-danger)',fontSize:13,padding:'6px 10px',background:'var(--color-background-danger)',borderRadius:6}}>{err}</div>}
+
+      <div style={{display:'flex',justifyContent:'flex-end',gap:8,marginTop:4}}>
+        <button onClick={onCancel} disabled={loading}>Cancelar</button>
+        <button onClick={doSave} disabled={loading} style={{background:'var(--color-background-info)',color:'var(--color-text-info)',border:'0.5px solid var(--color-border-info)',display:'flex',alignItems:'center',gap:6}}>
+          {loading?<><i className="ti ti-loader-2 ti-spin"/> Guardando...</>:<><i className="ti ti-check"/> Guardar movimiento</>}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+
 // ── EscriitosPropios ─────────────────────────────────────────
 // agrupa documentos por "materia" (= categoria || area || "Sin clasificar")
 // dentro de cada módulo los ordena A-Z por título
@@ -1148,7 +1477,7 @@ export default function App() {
   };
 
   const doExport=async(path,filename)=>{setExporting(true);try{await descargar(path,filename);}catch(e){alert("Error: "+e.message);}setExporting(false);};
-  const navigate=(v)=>{setView(v);setDetail(null);setModeloSelec(null);};
+  const navigate=(v)=>{setView(v);setDetail(null);setModeloSelec(null);setVerHistoria(false);};
 
   if(!user)return <LoginScreen onLogin={u=>{setUser(u);}}/>;
 
@@ -1351,27 +1680,55 @@ export default function App() {
             </table>)}
           </div>
         )}
-        {!loading&&view==="expedientes"&&detail&&(
+        {!loading&&view==="expedientes"&&detail&&!verHistoria&&(
           <div>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:"1.25rem"}}>
               {btnBack()}
-              {canEdit&&<button onClick={()=>openModal("expediente","edit","Editar Expediente",detail)}><i className="ti ti-edit"/> Editar</button>}
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={()=>setVerHistoria(true)} style={{fontSize:13,display:"flex",alignItems:"center",gap:5,background:"var(--color-background-success)",color:"var(--color-text-success)",border:"0.5px solid var(--color-border-success)"}}>
+                  <i className="ti ti-timeline"/> Ver historia
+                </button>
+                {canEdit&&<button onClick={()=>openModal("expediente","edit","Editar Expediente",detail)} style={{fontSize:13,display:"flex",alignItems:"center",gap:5}}><i className="ti ti-edit"/> Editar</button>}
+              </div>
             </div>
-            <div style={{background:"var(--color-background-primary)",border:`0.5px solid ${B}`,borderRadius:"var(--border-radius-lg)",padding:"1.5rem",borderLeft:`3px solid var(--color-border-${areaColor(detail.area)})`}}>
-              <div style={{display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:8,marginBottom:16}}>
-                <div><div style={{fontSize:12,color:"var(--color-text-secondary)",fontFamily:"var(--font-mono)",marginBottom:4}}>{detail.numero}</div><h2 style={{margin:0,fontSize:17,fontWeight:500}}>{detail.caratula}</h2></div>
-                <div style={{display:"flex",gap:8}}><AreaBadge area={detail.area} color={areaColor(detail.area)}/><Badge v={detail.estado}/></div>
+            <div style={{background:"var(--color-background-primary)",border:`0.5px solid ${B}`,borderRadius:"var(--border-radius-lg)",overflow:"hidden"}}>
+              <div style={{height:4,background:`var(--color-border-${areaColor(detail.area)})`}}/>
+              <div style={{padding:"1.25rem 1.5rem",borderBottom:`0.5px solid ${B}`,background:"var(--color-background-secondary)"}}>
+                <div style={{display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
+                  <div>
+                    <div style={{fontSize:11,color:"var(--color-text-secondary)",fontFamily:"var(--font-mono)",marginBottom:4}}>{detail.numero}</div>
+                    <h2 style={{margin:0,fontSize:17,fontWeight:600,lineHeight:1.3}}>{detail.caratula}</h2>
+                  </div>
+                  <div style={{display:"flex",gap:8,alignItems:"flex-start"}}><AreaBadge area={detail.area} color={areaColor(detail.area)}/><Badge v={detail.estado}/></div>
+                </div>
               </div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,borderTop:`0.5px solid ${B}`,paddingTop:16}}>
-                <DetailRow label="Juzgado / Organismo" value={detail.juzgado}/>
-                <DetailRow label="Fecha apertura" value={detail.apertura?.slice(0,10)}/>
-                <DetailRow label="Proxima fecha" value={detail.prox_fecha?.slice(0,10)}/>
-                <DetailRow label="Abogado" value={detail.abogado_nombre}/>
-                <DetailRow label="Cliente" value={detail.cliente_razon}/>
+              <div style={{padding:"1.25rem 1.5rem"}}>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,padding:"12px",background:"var(--color-background-secondary)",borderRadius:8,marginBottom:16}}>
+                  <div><div style={{fontSize:10,color:"var(--color-text-secondary)",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:3}}>Abogado</div><div style={{fontSize:13,fontWeight:500}}>{detail.abogado_nombre?.replace(/^Dr[a]?\.?\s+/i,'')||"—"}</div></div>
+                  <div><div style={{fontSize:10,color:"var(--color-text-secondary)",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:3}}>Cliente</div><div style={{fontSize:13,fontWeight:500}}>{detail.cliente_razon||"—"}</div></div>
+                  <div><div style={{fontSize:10,color:"var(--color-text-secondary)",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:3}}>Próx. fecha</div><div style={{fontSize:13,fontWeight:500,color:detail.prox_fecha?"var(--color-text-warning)":undefined}}>{detail.prox_fecha?.slice(0,10)||"—"}</div></div>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+                  <DetailRow label="Juzgado / Organismo" value={detail.juzgado}/>
+                  <DetailRow label="Fecha de apertura" value={detail.apertura?.slice(0,10)}/>
+                </div>
+                {detail.notas&&<div style={{marginTop:12,borderTop:`0.5px solid ${B}`,paddingTop:12}}><DetailRow label="Notas" value={detail.notas}/></div>}
+                <div style={{marginTop:16,borderTop:`0.5px solid ${B}`,paddingTop:14}}>
+                  <button onClick={()=>setVerHistoria(true)} style={{width:"100%",padding:"10px",display:"flex",alignItems:"center",justifyContent:"center",gap:8,fontSize:13,background:"var(--color-background-success)",color:"var(--color-text-success)",border:"0.5px solid var(--color-border-success)",fontWeight:500}}>
+                    <i className="ti ti-timeline" style={{fontSize:16}}/>  Ver historia del expediente
+                  </button>
+                </div>
               </div>
-              {detail.notas&&<div style={{marginTop:16,borderTop:`0.5px solid ${B}`,paddingTop:14}}><DetailRow label="Notas" value={detail.notas}/></div>}
             </div>
           </div>
+        )}
+        {!loading&&view==="expedientes"&&detail&&verHistoria&&(
+          <HistoriaExpediente
+            expediente={detail}
+            abogados={abogados}
+            onClose={()=>setVerHistoria(false)}
+            B={B}
+          />
         )}
 
         {/* ── CLIENTES ── */}
