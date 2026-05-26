@@ -1456,35 +1456,69 @@ export default function App() {
         {!loading&&view==="abogados"&&(
           <div>
             {pageHead("Abogados",isAdmin&&btnNew("abogado","Nuevo Abogado"))}
-            {[{tipo:"interno",label:"Abogados del Estudio",color:"info"},{tipo:"externo",label:"Externos / Contrarios",color:"warning"}].map(({tipo,label,color})=>(
-              <Sect key={tipo} title={label} color={color}>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-                  {abogados.filter(a=>tipo==="interno"?(a.tipo==="interno"||!a.tipo):a.tipo===tipo).map(a=>(
-                    <div key={a.id} style={{background:"var(--color-background-primary)",border:`0.5px solid ${B}`,borderRadius:"var(--border-radius-lg)",padding:"1.25rem",opacity:a.activo?1:0.65}}>
-                      <div style={{display:"flex",justifyContent:"space-between",marginBottom:12}}>
-                        <div style={{display:"flex",alignItems:"center",gap:10}}>
-                          <Avatar name={a.nombre} size={40} color={a.activo?color:"secondary"}/>
-                          <div>
-                            <div style={{fontSize:14,fontWeight:500}}>{a.nombre}</div>
-                            <div style={{fontSize:12,color:"var(--color-text-secondary)"}}>{a.matricula||a.especialidad||"Sin matricula"}</div>
-                            {a.dni&&<div style={{fontSize:11,color:"var(--color-text-secondary)"}}>DNI: {a.dni}</div>}
-                          </div>
-                        </div>
-                        {isAdmin&&<button onClick={()=>openModal("abogado","edit","Editar Abogado",a)} style={{padding:"4px 8px",fontSize:12}}><i className="ti ti-edit"/></button>}
-                      </div>
-                      <div style={{borderTop:`0.5px solid ${B}`,paddingTop:10,display:"flex",flexDirection:"column",gap:5}}>
-                        {a.email&&<div style={{display:"flex",gap:8,alignItems:"center"}}><i className="ti ti-mail" style={{fontSize:13,color:"var(--color-text-secondary)",width:16}}/><span style={{fontSize:12,color:"var(--color-text-secondary)"}}>{a.email}</span></div>}
-                        {(a.celular||a.tel)&&<div style={{display:"flex",gap:8,alignItems:"center"}}><i className="ti ti-phone" style={{fontSize:13,color:"var(--color-text-secondary)",width:16}}/><span style={{fontSize:12,color:"var(--color-text-secondary)"}}>{a.celular||a.tel}</span></div>}
-                        <div style={{display:"flex",justifyContent:"space-between",marginTop:4}}>
-                          <span style={{fontSize:12,color:"var(--color-text-secondary)"}}>{a.exp_activos||0} exp. activos</span>
-                          <Badge v={a.activo?"activo":"cerrado"}/>
-                        </div>
-                      </div>
+            {[
+              {tipo:"interno", label:"Abogados del Estudio", color:"info",    icon:"ti-user-circle"},
+              {tipo:"externo", label:"Externos / Contrarios", color:"warning", icon:"ti-user-x"},
+            ].map(({tipo,label,color,icon})=>{
+              const lista = abogados.filter(a => tipo==="interno" ? (a.tipo==="interno"||a.tipo==null||a.tipo==="") : a.tipo==="externo");
+              return (
+                <div key={tipo} style={{marginBottom:"2rem"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,paddingBottom:10,borderBottom:`0.5px solid ${B}`}}>
+                    <div style={{width:30,height:30,borderRadius:8,background:`var(--color-background-${color})`,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                      <i className={`ti ${icon}`} style={{fontSize:15,color:`var(--color-text-${color})`}}/>
                     </div>
-                  ))}
+                    <h2 style={{margin:0,fontSize:15,fontWeight:500}}>{label}</h2>
+                    <span style={{fontSize:12,color:"var(--color-text-secondary)",background:"var(--color-background-secondary)",padding:"2px 8px",borderRadius:10}}>
+                      {lista.length} {lista.length===1?"profesional":"profesionales"}
+                    </span>
+                  </div>
+                  {lista.length===0
+                    ? <div style={{textAlign:"center",padding:"2rem",color:"var(--color-text-secondary)",background:"var(--color-background-secondary)",borderRadius:"var(--border-radius-lg)",border:`0.5px dashed ${B}`}}>
+                        <i className={`ti ${icon}`} style={{fontSize:28,display:"block",marginBottom:8,opacity:0.4}}/>
+                        <p style={{margin:0,fontSize:13}}>No hay {label.toLowerCase()} cargados aún.</p>
+                        {isAdmin&&<button onClick={()=>openModal("abogado","new","Nuevo Abogado")} style={{marginTop:10,fontSize:12,background:`var(--color-background-${color})`,color:`var(--color-text-${color})`,border:`0.5px solid var(--color-border-${color})`}}>
+                          <i className="ti ti-plus"/> Agregar
+                        </button>}
+                      </div>
+                    : <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:12}}>
+                        {lista.map(a=>(
+                          <div key={a.id} style={{background:"var(--color-background-primary)",border:`0.5px solid ${B}`,borderRadius:"var(--border-radius-lg)",overflow:"hidden",opacity:a.activo?1:0.6,transition:"border-color .15s"}}
+                            onMouseEnter={e=>e.currentTarget.style.borderColor=`var(--color-border-${color})`}
+                            onMouseLeave={e=>e.currentTarget.style.borderColor=B}>
+                            {/* Header con color */}
+                            <div style={{height:4,background:`var(--color-border-${color})`,opacity:0.7}}/>
+                            <div style={{padding:"1rem 1.25rem"}}>
+                              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
+                                <div style={{display:"flex",alignItems:"center",gap:12}}>
+                                  <Avatar name={a.nombre} size={44} color={a.activo?color:"secondary"}/>
+                                  <div>
+                                    <div style={{fontSize:14,fontWeight:600,marginBottom:2}}>{a.nombre}</div>
+                                    {a.matricula&&<div style={{fontSize:11,color:`var(--color-text-${color})`,fontFamily:"var(--font-mono)",background:`var(--color-background-${color})`,padding:"1px 6px",borderRadius:4,display:"inline-block"}}>{a.matricula}</div>}
+                                    {!a.matricula&&a.especialidad&&<div style={{fontSize:12,color:"var(--color-text-secondary)"}}>{a.especialidad}</div>}
+                                  </div>
+                                </div>
+                                <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                                  <Badge v={a.activo?"activo":"cerrado"}/>
+                                  {isAdmin&&<button onClick={()=>openModal("abogado","edit","Editar Abogado",a)} style={{padding:"4px 7px",fontSize:12}} title="Editar"><i className="ti ti-edit"/></button>}
+                                </div>
+                              </div>
+                              <div style={{borderTop:`0.5px solid ${B}`,paddingTop:10,display:"flex",flexDirection:"column",gap:6}}>
+                                {a.especialidad&&a.matricula&&<div style={{display:"flex",gap:8,alignItems:"center"}}><i className="ti ti-briefcase" style={{fontSize:13,color:"var(--color-text-secondary)",width:16,flexShrink:0}}/><span style={{fontSize:12,color:"var(--color-text-secondary)"}}>{a.especialidad}</span></div>}
+                                {a.email&&<div style={{display:"flex",gap:8,alignItems:"center"}}><i className="ti ti-mail" style={{fontSize:13,color:"var(--color-text-secondary)",width:16,flexShrink:0}}/><span style={{fontSize:12,color:"var(--color-text-secondary)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.email}</span></div>}
+                                {(a.celular||a.tel)&&<div style={{display:"flex",gap:8,alignItems:"center"}}><i className="ti ti-phone" style={{fontSize:13,color:"var(--color-text-secondary)",width:16,flexShrink:0}}/><span style={{fontSize:12,color:"var(--color-text-secondary)"}}>{a.celular||a.tel}</span></div>}
+                                {a.dni&&<div style={{display:"flex",gap:8,alignItems:"center"}}><i className="ti ti-id" style={{fontSize:13,color:"var(--color-text-secondary)",width:16,flexShrink:0}}/><span style={{fontSize:12,color:"var(--color-text-secondary)"}}>DNI {a.dni}</span></div>}
+                                <div style={{display:"flex",justifyContent:"flex-end",marginTop:2}}>
+                                  <span style={{fontSize:11,color:"var(--color-text-secondary)",background:"var(--color-background-secondary)",padding:"2px 7px",borderRadius:8}}>{a.exp_activos||0} exp. activos</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                  }
                 </div>
-              </Sect>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -1492,34 +1526,67 @@ export default function App() {
         {!loading&&view==="juzgados"&&!detail&&(
           <div>
             {pageHead("Base de Juzgados",isAdmin&&btnNew("juzgado","Nuevo Juzgado"))}
-            {filterBar(
-              <select value={juzgFuero} onChange={e=>setJuzgFuero(e.target.value)} style={{fontSize:13}}><option value="todos">Todos los fueros</option>{[...new Set(juzgados.map(j=>j.fuero))].sort().map(f=><option key={f}>{f}</option>)}</select>,
+            <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
+              <select value={juzgFuero} onChange={e=>setJuzgFuero(e.target.value)} style={{fontSize:13}}>
+                <option value="todos">Todos los fueros</option>
+                {[...new Set(juzgados.map(j=>j.fuero).filter(Boolean))].sort().map(f=><option key={f}>{f}</option>)}
+              </select>
               <input value={juzgQ} onChange={e=>setJuzgQ(e.target.value)} placeholder="Buscar por nombre, juez..." style={{fontSize:13,flex:1,minWidth:200}}/>
-            )}
-            {card(<table style={{width:"100%",borderCollapse:"collapse",fontSize:13,tableLayout:"fixed"}}>
-              <thead><tr style={{background:"var(--color-background-secondary)"}}><TH w="33%">Nombre</TH><TH w="12%">Fuero</TH><TH w="19%">Juez/a</TH><TH w="23%">Domicilio</TH><TH w="10%">Tel</TH><TH w="3%"></TH></tr></thead>
-              <tbody>{filtJuzg.map((j,i,arr)=><tr key={j.id} style={{borderBottom:i<arr.length-1?`0.5px solid ${B}`:"none"}}>
-                <TD style={{fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{j.nombre}</TD>
-                <TD><Badge v={j.fuero}/></TD>
-                <TD style={{fontSize:12,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{j.nombre_juez||"—"}</TD>
-                <TD style={{fontSize:12,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{[j.calle,j.numero_calle].filter(Boolean).join(" ")||"—"}</TD>
-                <TD style={{fontSize:12,color:"var(--color-text-secondary)"}}>{j.telefono||"—"}</TD>
-                <TD><button onClick={()=>setDetail(j)} style={{padding:"3px 6px",fontSize:11}}><i className="ti ti-eye"/></button></TD>
-              </tr>)}</tbody>
-            </table>)}
+              <span style={{fontSize:13,color:"var(--color-text-secondary)",alignSelf:"center"}}>{filtJuzg.length} juzgado(s)</span>
+            </div>
+            {filtJuzg.length===0
+              ? <div style={{textAlign:"center",padding:"2.5rem",color:"var(--color-text-secondary)",background:"var(--color-background-secondary)",borderRadius:"var(--border-radius-lg)",border:`0.5px dashed ${B}`}}>
+                  <i className="ti ti-building-courthouse" style={{fontSize:36,display:"block",marginBottom:10,opacity:0.4}}/>
+                  <p style={{margin:"0 0 4px",fontSize:14,fontWeight:500}}>No hay juzgados cargados</p>
+                  <p style={{margin:0,fontSize:13}}>Agregá juzgados para mantener tu base de datos actualizada.</p>
+                </div>
+              : <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  {filtJuzg.map(j=>(
+                    <div key={j.id} onClick={()=>setDetail(j)} style={{background:"var(--color-background-primary)",border:`0.5px solid ${B}`,borderRadius:"var(--border-radius-lg)",padding:"0.875rem 1.25rem",cursor:"pointer",display:"flex",alignItems:"center",gap:14,transition:"border-color .15s"}}
+                      onMouseEnter={e=>e.currentTarget.style.borderColor="var(--color-border-info)"}
+                      onMouseLeave={e=>e.currentTarget.style.borderColor=B}>
+                      <div style={{width:38,height:38,borderRadius:8,background:"var(--color-background-secondary)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                        <i className="ti ti-building-courthouse" style={{fontSize:18,color:"var(--color-text-secondary)"}}/>
+                      </div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:13,fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{j.nombre}</div>
+                        <div style={{fontSize:11,color:"var(--color-text-secondary)",marginTop:2}}>
+                          {j.nombre_juez&&<span style={{marginRight:12}}><i className="ti ti-user" style={{fontSize:10,marginRight:3}}/>{j.nombre_juez}</span>}
+                          {[j.calle,j.numero_calle].filter(Boolean).join(" ")&&<span><i className="ti ti-map-pin" style={{fontSize:10,marginRight:3}}/>{[j.calle,j.numero_calle].filter(Boolean).join(" ")}</span>}
+                        </div>
+                      </div>
+                      <div style={{display:"flex",gap:8,alignItems:"center",flexShrink:0}}>
+                        {j.fuero&&<Badge v={j.fuero}/>}
+                        {j.telefono&&<span style={{fontSize:11,color:"var(--color-text-secondary)"}}>{j.telefono}</span>}
+                        <i className="ti ti-chevron-right" style={{fontSize:14,color:"var(--color-text-secondary)"}}/>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+            }
           </div>
         )}
         {!loading&&view==="juzgados"&&detail&&(
           <div>
-            {btnBack()}
-            <div style={{background:"var(--color-background-primary)",border:`0.5px solid ${B}`,borderRadius:"var(--border-radius-lg)",padding:"1.5rem"}}>
-              <h2 style={{margin:"0 0 4px",fontSize:18,fontWeight:500}}>{detail.nombre}</h2>
-              <div style={{display:"flex",gap:8,marginBottom:16}}><Badge v={detail.fuero}/><span style={{fontSize:12,color:"var(--color-text-secondary)"}}>{detail.jurisdiccion}</span></div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,borderTop:`0.5px solid ${B}`,paddingTop:16}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"1.25rem"}}>
+              {btnBack()}
+              {isAdmin&&<button onClick={()=>openModal("juzgado","edit","Editar Juzgado",detail)} style={{fontSize:13,display:"flex",alignItems:"center",gap:5}}><i className="ti ti-edit"/> Editar</button>}
+            </div>
+            <div style={{background:"var(--color-background-primary)",border:`0.5px solid ${B}`,borderRadius:"var(--border-radius-lg)",overflow:"hidden"}}>
+              <div style={{background:"var(--color-background-secondary)",padding:"1.25rem 1.5rem",borderBottom:`0.5px solid ${B}`,display:"flex",alignItems:"center",gap:12}}>
+                <div style={{width:44,height:44,borderRadius:10,background:"var(--color-background-primary)",display:"flex",alignItems:"center",justifyContent:"center",border:`0.5px solid ${B}`}}>
+                  <i className="ti ti-building-courthouse" style={{fontSize:22,color:"var(--color-text-secondary)"}}/>
+                </div>
+                <div>
+                  <h2 style={{margin:"0 0 4px",fontSize:17,fontWeight:500}}>{detail.nombre}</h2>
+                  <div style={{display:"flex",gap:8}}>{detail.fuero&&<Badge v={detail.fuero}/>}{detail.jurisdiccion&&<span style={{fontSize:12,color:"var(--color-text-secondary)"}}>{detail.jurisdiccion}</span>}</div>
+                </div>
+              </div>
+              <div style={{padding:"1.25rem 1.5rem",display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
                 <DetailRow label="Juez/a titular" value={detail.nombre_juez||"Vacante"}/>
-                <DetailRow label="Camara" value={detail.camara}/>
+                <DetailRow label="Cámara" value={detail.camara}/>
                 <DetailRow label="Domicilio" value={[detail.calle,detail.numero_calle,detail.piso&&("Piso "+detail.piso),detail.localidad].filter(Boolean).join(", ")}/>
-                <DetailRow label="Telefono / Email" value={[detail.telefono,detail.email].filter(Boolean).join(" · ")}/>
+                <DetailRow label="Teléfono / Email" value={[detail.telefono,detail.email].filter(Boolean).join(" · ")}/>
                 <DetailRow label="Horario" value={detail.horario}/>
                 <DetailRow label="Observaciones" value={detail.observaciones}/>
               </div>
@@ -1530,54 +1597,87 @@ export default function App() {
         {/* ── DOCTRINA ── */}
         {!loading&&view==="doctrina"&&!detail&&(
           <div>
-            {pageHead("Doctrina Juridica",btnNew("doctrina","Nueva Entrada de Doctrina"))}
-            {filterBar(
-              <select value={docAreaF} onChange={e=>setDocAreaF(e.target.value)} style={{fontSize:13}}><option value="">Todas las areas</option>{areas.map(a=><option key={a.id}>{a.nombre}</option>)}</select>,
-              <input value={docQ} onChange={e=>setDocQ(e.target.value)} placeholder="Buscar por titulo, autor..." style={{fontSize:13,flex:1,minWidth:200}}/>,
+            {pageHead("Doctrina Jurídica",btnNew("doctrina","Nueva Doctrina"))}
+            <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
+              <select value={docAreaF} onChange={e=>setDocAreaF(e.target.value)} style={{fontSize:13}}>
+                <option value="">Todas las áreas</option>
+                {areas.map(a=><option key={a.id}>{a.nombre}</option>)}
+              </select>
+              <input value={docQ} onChange={e=>setDocQ(e.target.value)} placeholder="Buscar por título, autor, voces..." style={{fontSize:13,flex:1,minWidth:220}}/>
               <span style={{fontSize:13,color:"var(--color-text-secondary)",alignSelf:"center"}}>{filtDoc.length} entrada(s)</span>
-            )}
-            <div style={{display:"flex",flexDirection:"column",gap:10}}>
-              {filtDoc.map(d=>(
-                <div key={d.id} onClick={()=>setDetail(d)} style={{background:"var(--color-background-primary)",border:`0.5px solid ${B}`,borderRadius:"var(--border-radius-lg)",padding:"1rem 1.25rem",cursor:"pointer",borderLeft:"3px solid var(--color-border-info)"}}>
-                  <div style={{display:"flex",justifyContent:"space-between",gap:12,marginBottom:6}}>
-                    <div style={{fontWeight:500,fontSize:14}}>{d.titulo}</div>
-                    <div style={{display:"flex",gap:6,flexShrink:0}}>
-                      {d.fuente&&<Badge v={d.fuente}/>}
-                      {d.area&&<AreaBadge area={d.area} color={areaColor(d.area)}/>}
-                      <button onClick={e=>{e.stopPropagation();openModal("doctrina","edit","Editar Doctrina",d);}} style={{padding:"3px 6px",fontSize:11}}><i className="ti ti-edit"/></button>
-                    </div>
-                  </div>
-                  <div style={{fontSize:12,color:"var(--color-text-secondary)",marginBottom:4}}>{d.autor}{d.publicacion?` — ${d.publicacion}`:""}{d.fecha_publicacion?` (${d.fecha_publicacion?.slice(0,4)})`:""}</div>
-                  {d.resumen&&<div style={{fontSize:13,lineHeight:1.5,color:"var(--color-text-secondary)",overflow:"hidden",textOverflow:"ellipsis",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{d.resumen}</div>}
-                  {d.voces&&<div style={{marginTop:6}}>{d.voces.split(",").slice(0,5).map((v,i)=><span key={i} style={{background:"var(--color-background-secondary)",padding:"2px 6px",borderRadius:10,marginRight:4,fontSize:11}}>{v.trim()}</span>)}</div>}
-                </div>
-              ))}
-              {filtDoc.length===0&&<div style={{textAlign:"center",padding:"2.5rem",color:"var(--color-text-secondary)"}}><i className="ti ti-notebook" style={{fontSize:36,display:"block",marginBottom:10}}/><p style={{margin:0}}>No hay entradas de doctrina cargadas.</p></div>}
             </div>
+            {filtDoc.length===0
+              ? <div style={{textAlign:"center",padding:"3rem",color:"var(--color-text-secondary)",background:"var(--color-background-secondary)",borderRadius:"var(--border-radius-lg)",border:`0.5px dashed ${B}`}}>
+                  <i className="ti ti-notebook" style={{fontSize:40,display:"block",marginBottom:12,opacity:0.4}}/>
+                  <p style={{margin:"0 0 4px",fontSize:14,fontWeight:500}}>No hay doctrina cargada</p>
+                  <p style={{margin:"0 0 12px",fontSize:13}}>Cargá artículos y obras de doctrina jurídica para construir tu biblioteca.</p>
+                  <button onClick={()=>openModal("doctrina","new","Nueva Doctrina")} style={{fontSize:13,background:"var(--color-background-info)",color:"var(--color-text-info)",border:"0.5px solid var(--color-border-info)"}}><i className="ti ti-plus"/> Agregar primera entrada</button>
+                </div>
+              : <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(380px,1fr))",gap:12}}>
+                  {filtDoc.map(d=>(
+                    <div key={d.id} onClick={()=>setDetail(d)} style={{background:"var(--color-background-primary)",border:`0.5px solid ${B}`,borderRadius:"var(--border-radius-lg)",overflow:"hidden",cursor:"pointer",transition:"border-color .15s"}}
+                      onMouseEnter={e=>e.currentTarget.style.borderColor="var(--color-border-info)"}
+                      onMouseLeave={e=>e.currentTarget.style.borderColor=B}>
+                      <div style={{height:3,background:"var(--color-border-info)"}}/>
+                      <div style={{padding:"1rem 1.25rem"}}>
+                        <div style={{display:"flex",justifyContent:"space-between",gap:8,marginBottom:8}}>
+                          <div style={{flex:1,minWidth:0}}>
+                            <div style={{fontWeight:600,fontSize:13,lineHeight:1.4,marginBottom:4,overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{d.titulo}</div>
+                            <div style={{fontSize:12,color:"var(--color-text-secondary)"}}>{d.autor}{d.publicacion?` — ${d.publicacion}`:""}{d.fecha_publicacion?` (${d.fecha_publicacion?.slice(0,4)})`:""}</div>
+                          </div>
+                          <button onClick={e=>{e.stopPropagation();openModal("doctrina","edit","Editar Doctrina",d);}} style={{padding:"4px 7px",fontSize:11,flexShrink:0}} title="Editar"><i className="ti ti-edit"/></button>
+                        </div>
+                        {d.resumen&&<div style={{fontSize:12,lineHeight:1.5,color:"var(--color-text-secondary)",marginBottom:8,overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{d.resumen}</div>}
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                          <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                            {d.fuente&&<Badge v={d.fuente}/>}
+                            {d.area&&<AreaBadge area={d.area} color={areaColor(d.area)}/>}
+                          </div>
+                          {d.voces&&<div>{d.voces.split(",").slice(0,2).map((v,i)=><span key={i} style={{background:"var(--color-background-secondary)",padding:"1px 5px",borderRadius:8,marginLeft:4,fontSize:10,color:"var(--color-text-secondary)"}}>{v.trim()}</span>)}</div>}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+            }
           </div>
         )}
         {!loading&&view==="doctrina"&&detail&&(
           <div>
-            <div style={{display:"flex",justifyContent:"space-between",marginBottom:"1.25rem"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"1.25rem"}}>
               {btnBack()}
               <div style={{display:"flex",gap:8}}>
-                <button onClick={()=>openModal("doctrina","edit","Editar Doctrina",detail)}><i className="ti ti-edit"/> Editar</button>
+                <button onClick={()=>openModal("doctrina","edit","Editar Doctrina",detail)} style={{fontSize:13,display:"flex",alignItems:"center",gap:5}}><i className="ti ti-edit"/> Editar</button>
                 {isAdmin&&<button onClick={()=>doDelete("doctrina",detail.id)} style={{color:"var(--color-text-danger)",border:"0.5px solid var(--color-border-danger)",background:"var(--color-background-danger)"}}><i className="ti ti-trash"/></button>}
               </div>
             </div>
-            <div style={{background:"var(--color-background-primary)",border:`0.5px solid ${B}`,borderRadius:"var(--border-radius-lg)",padding:"1.5rem",borderLeft:"3px solid var(--color-border-info)"}}>
-              <h2 style={{margin:"0 0 8px",fontSize:18,fontWeight:500}}>{detail.titulo}</h2>
-              <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>{detail.fuente&&<Badge v={detail.fuente}/>}{detail.area&&<AreaBadge area={detail.area} color={areaColor(detail.area)}/>}</div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,borderTop:`0.5px solid ${B}`,paddingTop:16}}>
-                <DetailRow label="Autor" value={detail.autor}/>
-                <DetailRow label="Coautores" value={detail.coautores}/>
-                <DetailRow label="Publicacion" value={detail.publicacion}/>
-                <DetailRow label="Fecha" value={detail.fecha_publicacion?.slice(0,10)}/>
+            <div style={{background:"var(--color-background-primary)",border:`0.5px solid ${B}`,borderRadius:"var(--border-radius-lg)",overflow:"hidden"}}>
+              <div style={{height:4,background:"var(--color-border-info)"}}/>
+              <div style={{padding:"1.5rem"}}>
+                <h2 style={{margin:"0 0 6px",fontSize:18,fontWeight:600,lineHeight:1.3}}>{detail.titulo}</h2>
+                <div style={{fontSize:13,color:"var(--color-text-secondary)",marginBottom:14}}>{detail.autor}{detail.coautores?` · ${detail.coautores}`:""}{detail.publicacion?` — ${detail.publicacion}`:""}{detail.fecha_publicacion?` (${detail.fecha_publicacion?.slice(0,4)})`:""}</div>
+                <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:16}}>
+                  {detail.fuente&&<Badge v={detail.fuente}/>}
+                  {detail.area&&<AreaBadge area={detail.area} color={areaColor(detail.area)}/>}
+                </div>
+                {detail.voces&&<div style={{marginBottom:14}}>
+                  <div style={{fontSize:11,fontWeight:500,color:"var(--color-text-secondary)",marginBottom:6,textTransform:"uppercase",letterSpacing:"0.05em"}}>Voces</div>
+                  <div>{detail.voces.split(",").map((v,i)=><span key={i} style={{background:"var(--color-background-info)",color:"var(--color-text-info)",padding:"3px 10px",borderRadius:12,marginRight:5,marginBottom:4,fontSize:12,display:"inline-block"}}>{v.trim()}</span>)}</div>
+                </div>}
+                {detail.resumen&&<div style={{padding:"12px 16px",background:"var(--color-background-secondary)",borderRadius:8,marginBottom:16,borderLeft:"3px solid var(--color-border-info)"}}>
+                  <div style={{fontSize:11,fontWeight:500,color:"var(--color-text-secondary)",marginBottom:5,textTransform:"uppercase",letterSpacing:"0.05em"}}>Resumen</div>
+                  <div style={{fontSize:13,lineHeight:1.7}}>{detail.resumen}</div>
+                </div>}
+                {detail.contenido&&<div style={{borderTop:`0.5px solid ${B}`,paddingTop:14}}>
+                  <div style={{fontSize:11,fontWeight:500,color:"var(--color-text-secondary)",marginBottom:8,textTransform:"uppercase",letterSpacing:"0.05em"}}>Contenido</div>
+                  <div style={{fontSize:13,lineHeight:1.9,whiteSpace:"pre-wrap"}}>{detail.contenido}</div>
+                </div>}
+                {detail.url&&<div style={{marginTop:16,paddingTop:14,borderTop:`0.5px solid ${B}`}}>
+                  <a href={detail.url} target="_blank" rel="noopener noreferrer" style={{fontSize:13,color:"var(--color-text-info)",display:"inline-flex",alignItems:"center",gap:6,padding:"6px 12px",border:"0.5px solid var(--color-border-info)",borderRadius:"var(--border-radius-md)",textDecoration:"none"}}>
+                    <i className="ti ti-external-link"/> Ver fuente original
+                  </a>
+                </div>}
               </div>
-              {detail.voces&&<div style={{margin:"12px 0"}}><div style={{fontSize:11,color:"var(--color-text-secondary)",marginBottom:6}}>Voces</div><div>{detail.voces.split(",").map((v,i)=><span key={i} style={{background:"var(--color-background-secondary)",padding:"3px 8px",borderRadius:12,marginRight:4,fontSize:12}}>{v.trim()}</span>)}</div></div>}
-              {detail.resumen&&<div style={{margin:"12px 0",borderTop:`0.5px solid ${B}`,paddingTop:12}}><DetailRow label="Resumen" value={detail.resumen}/></div>}
-              {detail.contenido&&<div style={{margin:"12px 0",borderTop:`0.5px solid ${B}`,paddingTop:12}}><div style={{fontSize:11,color:"var(--color-text-secondary)",marginBottom:6}}>Contenido</div><div style={{fontSize:13,lineHeight:1.8,whiteSpace:"pre-wrap"}}>{detail.contenido}</div></div>}
-              {detail.url&&<a href={detail.url} target="_blank" rel="noopener noreferrer" style={{fontSize:13,color:"var(--color-text-info)",display:"flex",alignItems:"center",gap:5,marginTop:12}}><i className="ti ti-external-link"/> Ver fuente original</a>}
             </div>
           </div>
         )}
@@ -1586,56 +1686,93 @@ export default function App() {
         {!loading&&view==="jurisprudencia"&&!detail&&(
           <div>
             {pageHead("Jurisprudencia",btnNew("jurisprudencia","Nuevo Fallo"))}
-            {filterBar(
-              <select value={jurisAreaF} onChange={e=>setJurisAreaF(e.target.value)} style={{fontSize:13}}><option value="">Todas las areas</option>{areas.map(a=><option key={a.id}>{a.nombre}</option>)}</select>,
-              <input value={jurisQ} onChange={e=>setJurisQ(e.target.value)} placeholder="Buscar por caratula, tema..." style={{fontSize:13,flex:1,minWidth:200}}/>,
+            <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
+              <select value={jurisAreaF} onChange={e=>setJurisAreaF(e.target.value)} style={{fontSize:13}}>
+                <option value="">Todas las áreas</option>
+                {areas.map(a=><option key={a.id}>{a.nombre}</option>)}
+              </select>
+              <input value={jurisQ} onChange={e=>setJurisQ(e.target.value)} placeholder="Buscar por carátula, tema, voces..." style={{fontSize:13,flex:1,minWidth:220}}/>
               <span style={{fontSize:13,color:"var(--color-text-secondary)",alignSelf:"center"}}>{filtJuris.length} fallo(s)</span>
-            )}
-            <div style={{display:"flex",flexDirection:"column",gap:10}}>
-              {filtJuris.map(j=>(
-                <div key={j.id} onClick={()=>setDetail(j)} style={{background:"var(--color-background-primary)",border:`0.5px solid ${B}`,borderRadius:"var(--border-radius-lg)",padding:"1rem 1.25rem",cursor:"pointer",borderLeft:"3px solid var(--color-border-secondary)"}}>
-                  <div style={{display:"flex",justifyContent:"space-between",gap:12,marginBottom:6}}>
-                    <div style={{fontWeight:500,fontSize:14,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{j.caratula}</div>
-                    <div style={{display:"flex",gap:6,flexShrink:0}}>
-                      {j.area&&<AreaBadge area={j.area} color={areaColor(j.area)}/>}
-                      <button onClick={e=>{e.stopPropagation();openModal("jurisprudencia","edit","Editar Jurisprudencia",j);}} style={{padding:"3px 6px",fontSize:11}}><i className="ti ti-edit"/></button>
-                    </div>
-                  </div>
-                  <div style={{fontSize:12,color:"var(--color-text-secondary)",marginBottom:4}}><strong>{j.tribunal}</strong>{j.sala?` — Sala ${j.sala}`:""}{j.fecha_fallo?` · ${j.fecha_fallo?.slice(0,10)}`:""}{j.cita?` · ${j.cita}`:""}</div>
-                  {j.tema&&<div style={{fontSize:13,color:"var(--color-text-primary)",marginBottom:4}}>{j.tema}</div>}
-                  {j.resumen&&<div style={{fontSize:13,lineHeight:1.5,color:"var(--color-text-secondary)",overflow:"hidden",textOverflow:"ellipsis",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{j.resumen}</div>}
-                </div>
-              ))}
-              {filtJuris.length===0&&<div style={{textAlign:"center",padding:"2.5rem",color:"var(--color-text-secondary)"}}><i className="ti ti-gavel" style={{fontSize:36,display:"block",marginBottom:10}}/><p style={{margin:0}}>No hay fallos cargados.</p></div>}
             </div>
+            {filtJuris.length===0
+              ? <div style={{textAlign:"center",padding:"3rem",color:"var(--color-text-secondary)",background:"var(--color-background-secondary)",borderRadius:"var(--border-radius-lg)",border:`0.5px dashed ${B}`}}>
+                  <i className="ti ti-gavel" style={{fontSize:40,display:"block",marginBottom:12,opacity:0.4}}/>
+                  <p style={{margin:"0 0 4px",fontSize:14,fontWeight:500}}>No hay fallos cargados</p>
+                  <p style={{margin:"0 0 12px",fontSize:13}}>Registrá los fallos más importantes de tu práctica diaria.</p>
+                  <button onClick={()=>openModal("jurisprudencia","new","Nuevo Fallo")} style={{fontSize:13,background:"var(--color-background-info)",color:"var(--color-text-info)",border:"0.5px solid var(--color-border-info)"}}><i className="ti ti-plus"/> Agregar primer fallo</button>
+                </div>
+              : <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  {filtJuris.map(j=>(
+                    <div key={j.id} onClick={()=>setDetail(j)} style={{background:"var(--color-background-primary)",border:`0.5px solid ${B}`,borderRadius:"var(--border-radius-lg)",overflow:"hidden",cursor:"pointer",transition:"border-color .15s"}}
+                      onMouseEnter={e=>e.currentTarget.style.borderColor="var(--color-border-secondary)"}
+                      onMouseLeave={e=>e.currentTarget.style.borderColor=B}>
+                      <div style={{display:"flex",alignItems:"stretch"}}>
+                        <div style={{width:4,background:"var(--color-border-secondary)",flexShrink:0}}/>
+                        <div style={{flex:1,padding:"0.875rem 1.25rem"}}>
+                          <div style={{display:"flex",justifyContent:"space-between",gap:12,marginBottom:4}}>
+                            <div style={{fontWeight:600,fontSize:13,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{j.caratula}</div>
+                            <div style={{display:"flex",gap:6,flexShrink:0,alignItems:"center"}}>
+                              {j.area&&<AreaBadge area={j.area} color={areaColor(j.area)}/>}
+                              <button onClick={e=>{e.stopPropagation();openModal("jurisprudencia","edit","Editar Jurisprudencia",j);}} style={{padding:"3px 6px",fontSize:11}} title="Editar"><i className="ti ti-edit"/></button>
+                            </div>
+                          </div>
+                          <div style={{display:"flex",gap:12,alignItems:"center",flexWrap:"wrap"}}>
+                            <span style={{fontSize:12,fontWeight:500,color:"var(--color-text-secondary)"}}>{j.tribunal}{j.sala?` — Sala ${j.sala}`:""}</span>
+                            {j.fecha_fallo&&<span style={{fontSize:11,color:"var(--color-text-secondary)",background:"var(--color-background-secondary)",padding:"1px 6px",borderRadius:6}}>{j.fecha_fallo?.slice(0,10)}</span>}
+                            {j.cita&&<span style={{fontSize:11,fontFamily:"var(--font-mono)",color:"var(--color-text-secondary)"}}>{j.cita}</span>}
+                          </div>
+                          {j.tema&&<div style={{fontSize:12,marginTop:4,color:"var(--color-text-primary)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{j.tema}</div>}
+                        </div>
+                        <div style={{display:"flex",alignItems:"center",padding:"0 14px",color:"var(--color-text-secondary)"}}>
+                          <i className="ti ti-chevron-right" style={{fontSize:14}}/>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+            }
           </div>
         )}
         {!loading&&view==="jurisprudencia"&&detail&&(
           <div>
-            <div style={{display:"flex",justifyContent:"space-between",marginBottom:"1.25rem"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"1.25rem"}}>
               {btnBack()}
               <div style={{display:"flex",gap:8}}>
-                <button onClick={()=>openModal("jurisprudencia","edit","Editar",detail)}><i className="ti ti-edit"/> Editar</button>
+                <button onClick={()=>openModal("jurisprudencia","edit","Editar Fallo",detail)} style={{fontSize:13,display:"flex",alignItems:"center",gap:5}}><i className="ti ti-edit"/> Editar</button>
                 {isAdmin&&<button onClick={()=>doDelete("jurisprudencia",detail.id)} style={{color:"var(--color-text-danger)",border:"0.5px solid var(--color-border-danger)",background:"var(--color-background-danger)"}}><i className="ti ti-trash"/></button>}
               </div>
             </div>
-            <div style={{background:"var(--color-background-primary)",border:`0.5px solid ${B}`,borderRadius:"var(--border-radius-lg)",padding:"1.5rem"}}>
-              <h2 style={{margin:"0 0 8px",fontSize:16,fontWeight:500,lineHeight:1.4}}>{detail.caratula}</h2>
-              <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
-                {detail.area&&<AreaBadge area={detail.area} color={areaColor(detail.area)}/>}
-                {detail.cita&&<span style={{fontSize:12,fontFamily:"var(--font-mono)",color:"var(--color-text-secondary)"}}>{detail.cita}</span>}
+            <div style={{background:"var(--color-background-primary)",border:`0.5px solid ${B}`,borderRadius:"var(--border-radius-lg)",overflow:"hidden"}}>
+              <div style={{padding:"1.25rem 1.5rem",background:"var(--color-background-secondary)",borderBottom:`0.5px solid ${B}`}}>
+                <h2 style={{margin:"0 0 8px",fontSize:16,fontWeight:600,lineHeight:1.4}}>{detail.caratula}</h2>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+                  {detail.area&&<AreaBadge area={detail.area} color={areaColor(detail.area)}/>}
+                  {detail.cita&&<span style={{fontSize:12,fontFamily:"var(--font-mono)",color:"var(--color-text-secondary)",background:"var(--color-background-primary)",padding:"2px 8px",borderRadius:6,border:`0.5px solid ${B}`}}>{detail.cita}</span>}
+                  {detail.publicado_en&&<span style={{fontSize:12,color:"var(--color-text-secondary)"}}>{detail.publicado_en}</span>}
+                </div>
               </div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,borderTop:`0.5px solid ${B}`,paddingTop:16}}>
-                <DetailRow label="Tribunal" value={detail.tribunal}/>
-                <DetailRow label="Sala" value={detail.sala}/>
-                <DetailRow label="Fecha del fallo" value={detail.fecha_fallo?.slice(0,10)}/>
-                <DetailRow label="Publicado en" value={detail.publicado_en}/>
-                <DetailRow label="Tema" value={detail.tema}/>
+              <div style={{padding:"1.25rem 1.5rem"}}>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:16,padding:"12px",background:"var(--color-background-secondary)",borderRadius:8}}>
+                  <div><div style={{fontSize:10,color:"var(--color-text-secondary)",marginBottom:3,textTransform:"uppercase",letterSpacing:"0.05em"}}>Tribunal</div><div style={{fontSize:13,fontWeight:500}}>{detail.tribunal||"—"}</div></div>
+                  <div><div style={{fontSize:10,color:"var(--color-text-secondary)",marginBottom:3,textTransform:"uppercase",letterSpacing:"0.05em"}}>Sala</div><div style={{fontSize:13,fontWeight:500}}>{detail.sala||"—"}</div></div>
+                  <div><div style={{fontSize:10,color:"var(--color-text-secondary)",marginBottom:3,textTransform:"uppercase",letterSpacing:"0.05em"}}>Fecha</div><div style={{fontSize:13,fontWeight:500}}>{detail.fecha_fallo?.slice(0,10)||"—"}</div></div>
+                </div>
+                {detail.tema&&<div style={{marginBottom:12}}><div style={{fontSize:11,fontWeight:500,color:"var(--color-text-secondary)",marginBottom:4,textTransform:"uppercase",letterSpacing:"0.05em"}}>Tema</div><div style={{fontSize:13}}>{detail.tema}</div></div>}
+                {detail.voces&&<div style={{marginBottom:14}}><div style={{fontSize:11,fontWeight:500,color:"var(--color-text-secondary)",marginBottom:6,textTransform:"uppercase",letterSpacing:"0.05em"}}>Voces</div><div>{detail.voces.split(",").map((v,i)=><span key={i} style={{background:"var(--color-background-secondary)",border:`0.5px solid ${B}`,padding:"3px 10px",borderRadius:12,marginRight:5,marginBottom:4,fontSize:12,display:"inline-block"}}>{v.trim()}</span>)}</div></div>}
+                {detail.resumen&&<div style={{padding:"12px 16px",background:"var(--color-background-secondary)",borderRadius:8,marginBottom:16,borderLeft:"3px solid var(--color-border-secondary)"}}>
+                  <div style={{fontSize:11,fontWeight:500,color:"var(--color-text-secondary)",marginBottom:5,textTransform:"uppercase",letterSpacing:"0.05em"}}>Resumen</div>
+                  <div style={{fontSize:13,lineHeight:1.7}}>{detail.resumen}</div>
+                </div>}
+                {detail.texto&&<div style={{borderTop:`0.5px solid ${B}`,paddingTop:14}}>
+                  <div style={{fontSize:11,fontWeight:500,color:"var(--color-text-secondary)",marginBottom:8,textTransform:"uppercase",letterSpacing:"0.05em"}}>Extracto del fallo</div>
+                  <div style={{fontSize:13,lineHeight:2,whiteSpace:"pre-wrap",fontFamily:"Georgia,serif",color:"var(--color-text-primary)"}}>{detail.texto}</div>
+                </div>}
+                {detail.url&&<div style={{marginTop:16,paddingTop:14,borderTop:`0.5px solid ${B}`}}>
+                  <a href={detail.url} target="_blank" rel="noopener noreferrer" style={{fontSize:13,color:"var(--color-text-info)",display:"inline-flex",alignItems:"center",gap:6,padding:"6px 14px",border:"0.5px solid var(--color-border-info)",borderRadius:"var(--border-radius-md)",textDecoration:"none"}}>
+                    <i className="ti ti-external-link"/> Ver fallo completo
+                  </a>
+                </div>}
               </div>
-              {detail.voces&&<div style={{margin:"12px 0",borderTop:`0.5px solid ${B}`,paddingTop:12}}><div style={{fontSize:11,color:"var(--color-text-secondary)",marginBottom:6}}>Voces</div><div>{detail.voces.split(",").map((v,i)=><span key={i} style={{background:"var(--color-background-secondary)",padding:"3px 8px",borderRadius:12,marginRight:4,fontSize:12}}>{v.trim()}</span>)}</div></div>}
-              {detail.resumen&&<div style={{margin:"12px 0",borderTop:`0.5px solid ${B}`,paddingTop:12}}><DetailRow label="Resumen" value={detail.resumen}/></div>}
-              {detail.texto&&<div style={{margin:"12px 0",borderTop:`0.5px solid ${B}`,paddingTop:12}}><div style={{fontSize:11,color:"var(--color-text-secondary)",marginBottom:6}}>Extracto del fallo</div><div style={{fontSize:13,lineHeight:1.9,whiteSpace:"pre-wrap",fontFamily:"Georgia,serif"}}>{detail.texto}</div></div>}
-              {detail.url&&<a href={detail.url} target="_blank" rel="noopener noreferrer" style={{fontSize:13,color:"var(--color-text-info)",display:"flex",alignItems:"center",gap:5,marginTop:12}}><i className="ti ti-external-link"/> Ver fallo completo</a>}
             </div>
           </div>
         )}
@@ -1643,50 +1780,101 @@ export default function App() {
         {/* ── LEYES ── */}
         {!loading&&view==="leyes"&&!detail&&(
           <div>
-            {pageHead("Legislacion",btnNew("ley","Nueva Ley / Decreto"))}
-            {filterBar(
-              <select value={leyAreaF} onChange={e=>setLeyAreaF(e.target.value)} style={{fontSize:13}}><option value="">Todas las areas</option>{areas.map(a=><option key={a.id}>{a.nombre}</option>)}</select>,
-              <select value={leyTipoF} onChange={e=>setLeyTipoF(e.target.value)} style={{fontSize:13}}><option value="">Todos los tipos</option>{TIPOS_LEY.map(t=><option key={t} value={t}>{t.charAt(0).toUpperCase()+t.slice(1)}</option>)}</select>,
-              <input value={leyQ} onChange={e=>setLeyQ(e.target.value)} placeholder="Buscar por numero o nombre..." style={{fontSize:13,flex:1,minWidth:180}}/>,
+            {pageHead("Legislación",btnNew("ley","Nueva Ley / Decreto"))}
+            <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
+              <select value={leyAreaF} onChange={e=>setLeyAreaF(e.target.value)} style={{fontSize:13}}>
+                <option value="">Todas las áreas</option>
+                {areas.map(a=><option key={a.id}>{a.nombre}</option>)}
+              </select>
+              <select value={leyTipoF} onChange={e=>setLeyTipoF(e.target.value)} style={{fontSize:13}}>
+                <option value="">Todos los tipos</option>
+                {TIPOS_LEY.map(t=><option key={t} value={t}>{t.charAt(0).toUpperCase()+t.slice(1)}</option>)}
+              </select>
+              <input value={leyQ} onChange={e=>setLeyQ(e.target.value)} placeholder="Buscar por número o nombre..." style={{fontSize:13,flex:1,minWidth:200}}/>
               <span style={{fontSize:13,color:"var(--color-text-secondary)",alignSelf:"center"}}>{filtLeyes.length} norma(s)</span>
-            )}
-            {card(<table style={{width:"100%",borderCollapse:"collapse",fontSize:13,tableLayout:"fixed"}}>
-              <thead><tr style={{background:"var(--color-background-secondary)"}}><TH w="9%">Numero</TH><TH w="34%">Nombre</TH><TH w="10%">Tipo</TH><TH w="13%">Area</TH><TH w="10%">Sancion</TH><TH w="10%">Vigencia</TH><TH w="4%"></TH></tr></thead>
-              <tbody>{filtLeyes.map((l,i,arr)=><tr key={l.id} style={{borderBottom:i<arr.length-1?`0.5px solid ${B}`:"none",cursor:"pointer"}} onClick={()=>setDetail(l)}>
-                <TD style={{fontFamily:"var(--font-mono)",fontSize:12,fontWeight:500}}>{l.numero}</TD>
-                <TD><div style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontWeight:500}}>{l.nombre}</div>{l.organismo&&<div style={{fontSize:11,color:"var(--color-text-secondary)"}}>{l.organismo}</div>}</TD>
-                <TD><Badge v={l.tipo}/></TD>
-                <TD>{l.area&&<AreaBadge area={l.area} color={areaColor(l.area)}/>}</TD>
-                <TD style={{fontSize:12,color:"var(--color-text-secondary)"}}>{l.fecha_sancion?.slice(0,10)||"—"}</TD>
-                <TD style={{fontSize:12,color:"var(--color-text-secondary)"}}>{l.fecha_vigencia?.slice(0,10)||"—"}</TD>
-                <TD><button onClick={e=>{e.stopPropagation();openModal("ley","edit","Editar Ley",l);}} style={{padding:"3px 6px",fontSize:11}}><i className="ti ti-edit"/></button></TD>
-              </tr>)}</tbody>
-            </table>)}
+            </div>
+            {filtLeyes.length===0
+              ? <div style={{textAlign:"center",padding:"3rem",color:"var(--color-text-secondary)",background:"var(--color-background-secondary)",borderRadius:"var(--border-radius-lg)",border:`0.5px dashed ${B}`}}>
+                  <i className="ti ti-file-certificate" style={{fontSize:40,display:"block",marginBottom:12,opacity:0.4}}/>
+                  <p style={{margin:"0 0 4px",fontSize:14,fontWeight:500}}>No hay legislación cargada</p>
+                  <p style={{margin:"0 0 12px",fontSize:13}}>Cargá las leyes y decretos de uso frecuente en el estudio.</p>
+                  <button onClick={()=>openModal("ley","new","Nueva Ley / Decreto")} style={{fontSize:13,background:"var(--color-background-info)",color:"var(--color-text-info)",border:"0.5px solid var(--color-border-info)"}}><i className="ti ti-plus"/> Agregar primera ley</button>
+                </div>
+              : <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                  {filtLeyes.map(l=>(
+                    <div key={l.id} onClick={()=>setDetail(l)} style={{background:"var(--color-background-primary)",border:`0.5px solid ${B}`,borderRadius:"var(--border-radius-lg)",cursor:"pointer",display:"flex",alignItems:"center",gap:0,overflow:"hidden",transition:"border-color .15s"}}
+                      onMouseEnter={e=>e.currentTarget.style.borderColor="var(--color-border-info)"}
+                      onMouseLeave={e=>e.currentTarget.style.borderColor=B}>
+                      {/* Número */}
+                      <div style={{padding:"1rem",minWidth:80,textAlign:"center",background:"var(--color-background-secondary)",borderRight:`0.5px solid ${B}`,flexShrink:0}}>
+                        <div style={{fontSize:11,color:"var(--color-text-secondary)",marginBottom:2}}>Nº</div>
+                        <div style={{fontSize:14,fontWeight:700,fontFamily:"var(--font-mono)",color:"var(--color-text-primary)"}}>{l.numero}</div>
+                      </div>
+                      {/* Contenido */}
+                      <div style={{flex:1,padding:"0.75rem 1rem",minWidth:0}}>
+                        <div style={{fontWeight:500,fontSize:13,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginBottom:3}}>{l.nombre}</div>
+                        <div style={{fontSize:11,color:"var(--color-text-secondary)"}}>{l.organismo}{l.fecha_sancion?` · ${l.fecha_sancion?.slice(0,10)}`:""}</div>
+                      </div>
+                      {/* Badges */}
+                      <div style={{padding:"0 1rem",display:"flex",gap:6,alignItems:"center",flexShrink:0}}>
+                        {l.tipo&&<Badge v={l.tipo}/>}
+                        {l.area&&<AreaBadge area={l.area} color={areaColor(l.area)}/>}
+                        <button onClick={e=>{e.stopPropagation();openModal("ley","edit","Editar Ley",l);}} style={{padding:"3px 6px",fontSize:11,marginLeft:4}} title="Editar"><i className="ti ti-edit"/></button>
+                        <i className="ti ti-chevron-right" style={{fontSize:13,color:"var(--color-text-secondary)"}}/>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+            }
           </div>
         )}
         {!loading&&view==="leyes"&&detail&&(
           <div>
-            <div style={{display:"flex",justifyContent:"space-between",marginBottom:"1.25rem"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"1.25rem"}}>
               {btnBack()}
               <div style={{display:"flex",gap:8}}>
-                <button onClick={()=>openModal("ley","edit","Editar Ley",detail)}><i className="ti ti-edit"/> Editar</button>
+                <button onClick={()=>openModal("ley","edit","Editar Ley",detail)} style={{fontSize:13,display:"flex",alignItems:"center",gap:5}}><i className="ti ti-edit"/> Editar</button>
                 {isAdmin&&<button onClick={()=>doDelete("leyes",detail.id)} style={{color:"var(--color-text-danger)",border:"0.5px solid var(--color-border-danger)",background:"var(--color-background-danger)"}}><i className="ti ti-trash"/></button>}
               </div>
             </div>
-            <div style={{background:"var(--color-background-primary)",border:`0.5px solid ${B}`,borderRadius:"var(--border-radius-lg)",padding:"1.5rem"}}>
-              <div style={{display:"flex",gap:8,marginBottom:8}}><Badge v={detail.tipo}/>{detail.area&&<AreaBadge area={detail.area} color={areaColor(detail.area)}/>}</div>
-              <h2 style={{margin:"0 0 4px",fontSize:18,fontWeight:500}}>Ley N {detail.numero}</h2>
-              <h3 style={{margin:"0 0 16px",fontSize:15,fontWeight:400,color:"var(--color-text-secondary)"}}>{detail.nombre}</h3>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,borderTop:`0.5px solid ${B}`,paddingTop:16}}>
-                <DetailRow label="Organismo" value={detail.organismo}/>
-                <DetailRow label="Fecha de sancion" value={detail.fecha_sancion?.slice(0,10)}/>
-                <DetailRow label="Fecha de promulgacion" value={detail.fecha_promulgacion?.slice(0,10)}/>
-                <DetailRow label="Fecha de vigencia" value={detail.fecha_vigencia?.slice(0,10)}/>
-                <DetailRow label="Boletin Oficial N" value={detail.boletin_numero}/>
+            <div style={{background:"var(--color-background-primary)",border:`0.5px solid ${B}`,borderRadius:"var(--border-radius-lg)",overflow:"hidden"}}>
+              {/* Header */}
+              <div style={{padding:"1.25rem 1.5rem",background:"var(--color-background-secondary)",borderBottom:`0.5px solid ${B}`}}>
+                <div style={{display:"flex",alignItems:"center",gap:12}}>
+                  <div style={{minWidth:64,textAlign:"center",padding:"8px",background:"var(--color-background-primary)",borderRadius:8,border:`0.5px solid ${B}`}}>
+                    <div style={{fontSize:10,color:"var(--color-text-secondary)"}}>LEY</div>
+                    <div style={{fontSize:16,fontWeight:700,fontFamily:"var(--font-mono)"}}>{detail.numero}</div>
+                  </div>
+                  <div>
+                    <h2 style={{margin:"0 0 6px",fontSize:17,fontWeight:600}}>{detail.nombre}</h2>
+                    <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                      {detail.tipo&&<Badge v={detail.tipo}/>}
+                      {detail.area&&<AreaBadge area={detail.area} color={areaColor(detail.area)}/>}
+                    </div>
+                  </div>
+                </div>
               </div>
-              {detail.resumen&&<div style={{margin:"12px 0",borderTop:`0.5px solid ${B}`,paddingTop:12}}><DetailRow label="Resumen" value={detail.resumen}/></div>}
-              {detail.texto&&<div style={{margin:"12px 0",borderTop:`0.5px solid ${B}`,paddingTop:12}}><div style={{fontSize:11,color:"var(--color-text-secondary)",marginBottom:6}}>Articulos clave</div><div style={{fontSize:13,lineHeight:1.9,whiteSpace:"pre-wrap",fontFamily:"Georgia,serif"}}>{detail.texto}</div></div>}
-              {detail.url_infoleg&&<a href={detail.url_infoleg} target="_blank" rel="noopener noreferrer" style={{fontSize:13,color:"var(--color-text-info)",display:"flex",alignItems:"center",gap:5,marginTop:12}}><i className="ti ti-external-link"/> Ver en InfoLEG</a>}
+              {/* Datos */}
+              <div style={{padding:"1.25rem 1.5rem"}}>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:16,padding:"12px",background:"var(--color-background-secondary)",borderRadius:8}}>
+                  <div><div style={{fontSize:10,color:"var(--color-text-secondary)",marginBottom:3,textTransform:"uppercase",letterSpacing:"0.05em"}}>Organismo</div><div style={{fontSize:12,fontWeight:500}}>{detail.organismo||"—"}</div></div>
+                  <div><div style={{fontSize:10,color:"var(--color-text-secondary)",marginBottom:3,textTransform:"uppercase",letterSpacing:"0.05em"}}>Sanción</div><div style={{fontSize:12,fontWeight:500}}>{detail.fecha_sancion?.slice(0,10)||"—"}</div></div>
+                  <div><div style={{fontSize:10,color:"var(--color-text-secondary)",marginBottom:3,textTransform:"uppercase",letterSpacing:"0.05em"}}>Vigencia</div><div style={{fontSize:12,fontWeight:500}}>{detail.fecha_vigencia?.slice(0,10)||"—"}</div></div>
+                </div>
+                {detail.resumen&&<div style={{padding:"12px 16px",background:"var(--color-background-secondary)",borderRadius:8,marginBottom:16,borderLeft:"3px solid var(--color-border-info)"}}>
+                  <div style={{fontSize:11,fontWeight:500,color:"var(--color-text-secondary)",marginBottom:5,textTransform:"uppercase",letterSpacing:"0.05em"}}>Resumen</div>
+                  <div style={{fontSize:13,lineHeight:1.7}}>{detail.resumen}</div>
+                </div>}
+                {detail.texto&&<div style={{borderTop:`0.5px solid ${B}`,paddingTop:14}}>
+                  <div style={{fontSize:11,fontWeight:500,color:"var(--color-text-secondary)",marginBottom:10,textTransform:"uppercase",letterSpacing:"0.05em"}}>Artículos clave</div>
+                  <div style={{fontSize:13,lineHeight:2,whiteSpace:"pre-wrap",fontFamily:"Georgia,serif"}}>{detail.texto}</div>
+                </div>}
+                {detail.url_infoleg&&<div style={{marginTop:16,paddingTop:14,borderTop:`0.5px solid ${B}`}}>
+                  <a href={detail.url_infoleg} target="_blank" rel="noopener noreferrer" style={{fontSize:13,color:"var(--color-text-info)",display:"inline-flex",alignItems:"center",gap:6,padding:"6px 14px",border:"0.5px solid var(--color-border-info)",borderRadius:"var(--border-radius-md)",textDecoration:"none"}}>
+                    <i className="ti ti-external-link"/> Ver en InfoLEG
+                  </a>
+                </div>}
+              </div>
             </div>
           </div>
         )}
